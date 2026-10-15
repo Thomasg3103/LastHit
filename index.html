@@ -649,10 +649,42 @@ function buildShell(r) {
   const fl = mk(scaleUV(new THREE.PlaneGeometry(r.w, r.d), r.w / 1.6, r.d / 1.6), MAT[fk]); fl.rotation.x = -Math.PI / 2; fl.castShadow = false; r.group.add(fl);
   const ce = mk(scaleUV(new THREE.PlaneGeometry(r.w, r.d), r.w / 2.5, r.d / 2.5), MAT.plaster, 0, H, 0); ce.rotation.x = Math.PI / 2; ce.castShadow = false; r.group.add(ce);
   for (let wi = 0; wi < 4; wi++) {
-    const Ln = wi % 2 === 0 ? r.w : r.d, p = wallPoint(r, wi, 0, 0);
-    const wall = mk(scaleUV(new THREE.PlaneGeometry(Ln, H), Ln / 1.8, 1), MAT[wk], p.x, H / 2, p.z); wall.rotation.y = p.rot; wall.castShadow = false; r.group.add(wall);
-    const bp = wallPoint(r, wi, 0, .01); const bb = B(Ln, .1, .02, MAT.trim, bp.x, .05, bp.z, r.group); bb.rotation.y = p.rot; bb.castShadow = false;
+    const Ln = wi % 2 === 0 ? r.w : r.d;
+    // cut a hole for every doorway on this wall, then fill the wall around the holes
+    const holes = r.doors.filter(d => d.wall === wi).map(d => { const hw = d.to === 'outside' ? .8 : .5; return { a: d.s - hw, b: d.s + hw, top: d.to === 'outside' ? 2.27 : 2.13 }; }).sort((x, y) => x.a - y.a);
+    let a = -Ln / 2;
+    for (const h of holes) {
+      if (h.a > a) { wallPiece(r, wi, Ln, a, h.a, 0, H, MAT[wk]); baseboard(r, wi, a, h.a); }
+      wallPiece(r, wi, Ln, h.a, h.b, h.top, H, MAT[wk]);
+      a = h.b;
+    }
+    if (a < Ln / 2) { wallPiece(r, wi, Ln, a, Ln / 2, 0, H, MAT[wk]); baseboard(r, wi, a, Ln / 2); }
   }
+}
+function wallPiece(r, wi, Ln, a, b, y0, y1, mat) {
+  const geo = new THREE.PlaneGeometry(b - a, y1 - y0), uv = geo.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, (a + uv.getX(i) * (b - a) + Ln / 2) / 1.8, (y0 + uv.getY(i) * (y1 - y0)) / H);
+  const p = wallPoint(r, wi, (a + b) / 2, 0), m = mk(geo, mat, p.x, (y0 + y1) / 2, p.z); m.rotation.y = p.rot; m.castShadow = false; r.group.add(m);
+}
+function baseboard(r, wi, a, b) { const p = wallPoint(r, wi, (a + b) / 2, .01), bb = B(b - a, .1, .02, MAT.trim, p.x, .05, p.z, r.group); bb.rotation.y = p.rot; bb.castShadow = false; }
+const DS = new Map();
+const twoSided = m => { if (!DS.has(m)) { const c = m.clone(); c.side = THREE.DoubleSide; DS.set(m, c); } return DS.get(m); };
+// a short flight of stairs running away from the room into the dark (local: +z is into the room)
+function stairwell(g, up, wallMat) {
+  const n = 14, rise = .19, run = .28, len = n * run + .3;
+  for (let k = 0; k < n; k++) {
+    const top = up ? rise * (k + 1) : -rise * k, bottom = up ? 0 : -3.2;
+    B(1.0, top - bottom, run, MAT.wood, 0, (top + bottom) / 2, -(k + .5) * run, g);
+    B(1.0, .025, .05, MAT.trim, 0, top + .012, -k * run - .02, g);
+  }
+  const yTop = up ? 5.6 : H, yBot = up ? 0 : -3.2;
+  for (const sx of [-.5, .5]) { const w = mk(new THREE.PlaneGeometry(len, yTop - yBot), twoSided(wallMat), sx, (yTop + yBot) / 2, -len / 2, g); w.rotation.y = Math.PI / 2; w.castShadow = false; }
+  const back = mk(new THREE.PlaneGeometry(1.0, yTop - yBot), twoSided(wallMat), 0, (yTop + yBot) / 2, -len, g); back.castShadow = false;
+  if (up) { const ang = Math.atan2(rise, run), cl = Math.hypot(n * run, n * rise), c = mk(new THREE.PlaneGeometry(1.0, cl), twoSided(MAT.plaster), 0, n * rise / 2 + 2.25, -n * run / 2, g); c.rotation.x = Math.PI / 2 + ang; c.castShadow = false; }
+  else { const c = mk(new THREE.PlaneGeometry(1.0, len), twoSided(MAT.plaster), 0, 2.13, -len / 2, g); c.rotation.x = Math.PI / 2; c.castShadow = false; }
+  // handrail
+  const hr = C(.02, .02, Math.hypot(n * run, n * rise), MAT.woodDark, .42, (up ? n * rise / 2 : -n * rise / 2) + .9, -n * run / 2, g, 6);
+  hr.rotation.x = Math.PI / 2 + (up ? 1 : -1) * Math.atan2(rise, run);
 }
 function buildDoor(r, dr) {
   const g = new THREE.Group(); g.position.set(dr.x, 0, dr.z); g.rotation.y = dr.rot; r.group.add(g);
@@ -668,10 +700,9 @@ function buildDoor(r, dr) {
   for (const s of [-1, 1]) B(.08, 2.15, .12, MAT.trim, s * .5, 1.075, 0, g);
   B(1.08, .08, .12, MAT.trim, 0, 2.17, 0, g);
   if (diff !== 0) {
-    B(1.0, 2.1, .02, MAT.void, 0, 1.05, .005, g);
+    stairwell(g, diff > 0, MAT[(STYLE[r.node.type] || STYLE.storage)[0]]);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(.6, .15), new THREE.MeshStandardMaterial({ map: textTex(diff > 0 ? 'STAIRS  UP' : 'STAIRS  DOWN', 256, 64, '#d9d2bf', 30, '#1a1612'), roughness: .8 }));
     sign.userData.own = true; sign.position.set(0, 2.33, .02); g.add(sign);
-    if (diff > 0) for (let k = 0; k < 3; k++) B(1.0, .18 * (k + 1), .28, MAT.wood, 0, .09 * (k + 1), .14 + .28 * (2 - k), g);
     dr.stairs = diff;
   } else {
     const piv = new THREE.Group(); piv.position.set(-.45, 0, .03); g.add(piv);
@@ -974,6 +1005,8 @@ const sfx = {
   vanish() { burst({ type: 'highpass', f: 1500, dur: .35, g: .18 }); },
   scream(v = 1) { for (let i = 0; i < 5; i++) { const f = rnd(380, 1100); tone({ f, f2: f * .55, dur: 1.3, type: 'sawtooth', g: .14 * v }); } burst({ type: 'highpass', f: 900, dur: 1.2, g: .5 * v }); tone({ f: 60, f2: 30, dur: 1, g: .6 * v }); },
   rattle(where) { for (let i = 0; i < 5; i++) { burst({ type: 'bandpass', f: 900, q: 3, dur: .06, g: .25, at: i * .08, where }); tone({ f: 120, dur: .06, type: 'square', g: .06, at: i * .08, where }); } },
+  doorBang(where) { burst({ type: 'lowpass', f: 900, dur: .35, g: .6, where }); tone({ f: 85, f2: 45, dur: .3, g: .45, where }); burst({ f: 2400, q: 6, dur: .25, g: .12, where }); },
+  doorCreakLoud(where) { const f = rnd(240, 340); tone({ f, f2: f * 1.8, dur: .9, type: 'sawtooth', g: .09, attack: .08, where }); burst({ f: f * 3, q: 14, dur: .85, g: .2, attack: .1, where }); },
   doorOpen(where) { const f = rnd(300, 420); tone({ f, f2: f * 1.4, dur: .5, type: 'sawtooth', g: .04, attack: .05, where }); burst({ f: f * 3, q: 10, dur: .45, g: .08, attack: .05, where }); },
   doorClose(where, slam) { burst({ type: 'lowpass', f: slam ? 700 : 300, dur: slam ? .5 : .25, g: slam ? .7 : .22, where }); tone({ f: slam ? 70 : 90, f2: 40, dur: slam ? .4 : .2, g: slam ? .6 : .2, where }); },
   drip(where) { tone({ f: rnd(1300, 1900), f2: rnd(700, 900), dur: .09, g: .06, where }); },
@@ -1136,12 +1169,12 @@ function enterRoom(id, from, slam) {
     dr = dr || cur.doors[0];
     P.x = dr.x + dr.nx * .9; P.z = dr.z + dr.nz * .9; P.yaw = Math.atan2(-dr.nx, -dr.nz);
     for (let k = 0; k < 10 && blocked(P.x, P.z, PR); k++) { P.x += dr.nx * .2; P.z += dr.nz * .2; }
-    if (dr.panel) { dr.panel.rotation.y = -1.3; L.closing = { dr, t: 0, slam }; }
+    if (dr.panel) { dr.panel.rotation.y = -1.35; L.behind = { dr, t: 0 }; } else L.behind = null;
   }
   showRoom(node.name || ' ');
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
-  if (CR.room === id) placeCreatureFar();
+  if (CR.room === id) { placeCreatureFar(); if (L.openNoisy) { crHear(P.x, P.z); CR.grace = 1.2; } }
   else if (from !== null && id !== 'living' && G.time - (G.lastVisit ?? -99) > 45 && Math.random() < .25) creatureVisit(dr);
   if (node.type === 'fakeliving') setTimeout(() => { if (cur && cur.id === id) say("This isn't the living room.", 2.5); }, 1600);
 }
@@ -1188,8 +1221,9 @@ function noise(x, z, radius, loud) {
 }
 function crHear(x, z) {
   if (CR.state === 'wander' || CR.state === 'leave') sfx.growl(crWhere(), .2);
-  CR.state = 'track'; CR.tx = x; CR.tz = z; CR.cloud = null;
+  CR.state = 'track'; CR.tx = x; CR.tz = z; CR.cloud = null; CR.chase = true;
 }
+const runSpeed = () => 4.3 * (1 - L.high * .003);
 const crWhere = () => ({ x: CR.x, y: 2.0, z: CR.z });
 
 function useDoor(dr) {
@@ -1204,10 +1238,22 @@ function useDoor(dr) {
   }
   let to = dr.to;
   if (cur.node.enteredHigh && dr.to === cur.node.entryFrom) to = shuffleFrom(cur.id, dr.to);
-  sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z });
-  if (dr.stairs) for (let i = 0; i < 4; i++) sfx.myStep(.12);
   input.auto = false;
-  state = 'trans'; L.trans = { t: 0, to, from: cur.id, slam: input.run && !L.holding, built: false };
+  const run = input.run && !L.holding, at = { x: dr.x, y: 1.2, z: dr.z };
+  if (L.behind && L.behind.dr === dr) L.behind = null;
+  if (dr.panel && dr.panel.rotation.y > -.5) {
+    // running bangs it open; walking usually opens quietly, but some doors creak loud enough to carry
+    const loud = run || Math.random() < .35;
+    if (run) sfx.doorBang(at); else if (loud) sfx.doorCreakLoud(at); else sfx.doorOpen(at);
+    noise(dr.x, dr.z, run ? 10 : loud ? 6 : 3.5, loud ? 1 : 0);
+    L.openNoisy = loud;
+    L.opening = { dr, t: 0, dur: run ? .2 : .55, to, run };
+    state = 'opening';
+    return;
+  }
+  L.openNoisy = run;
+  if (dr.stairs) for (let i = 0; i < 6; i++) sfx.myStep(run ? .2 : .1);
+  state = 'trans'; L.trans = { t: 0, to, from: cur.id, slam: run, built: false };
 }
 function exhale(coughed) {
   const p = L.pull;
@@ -1294,10 +1340,14 @@ function update(dt) {
   }
   if (near) { L.doorPush += dt; if (L.doorPush > .18) { L.doorPush = 0; useDoor(near); if (state !== 'playing') return; } } else L.doorPush = 0;
   L.lockCd -= dt;
+  if (L.behind) {
+    const b = L.behind, dn = (P.x - b.dr.x) * b.dr.nx + (P.z - b.dr.z) * b.dr.nz; b.t += dt;
+    if (dn > 1.6 || b.t > 6) { L.closing = { dr: b.dr, t: 0, slam: running, from: b.dr.panel.rotation.y }; if (!running) sfx.doorOpen({ x: b.dr.x, y: 1.2, z: b.dr.z }); L.behind = null; }
+  }
   if (L.closing) {
-    const c = L.closing; c.t += dt;
-    c.dr.panel.rotation.y = -1.3 * (1 - ease(Math.min(1, c.t / .45)));
-    if (c.t >= .45) { sfx.doorClose({ x: c.dr.x, y: 1.2, z: c.dr.z }, c.slam); if (c.slam) { noise(c.dr.x, c.dr.z, 14, 1); L.shake = 2; } L.closing = null; }
+    const c = L.closing, dur = c.slam ? .16 : .6; c.t += dt;
+    c.dr.panel.rotation.y = (c.from ?? -1.3) * (1 - ease(Math.min(1, c.t / dur)));
+    if (c.t >= dur) { sfx.doorClose({ x: c.dr.x, y: 1.2, z: c.dr.z }, c.slam); if (c.slam) { noise(c.dr.x, c.dr.z, 14, 1); L.shake = 2.5; say('The door slams behind you.', 1.8); } L.closing = null; }
   }
 
   // items + notes
@@ -1481,14 +1531,14 @@ function updateCreature(dt) {
       if (CR.sniffSfx <= 0) { sfx.sniff(crWhere(), .32); CR.sniffSfx = .8; }
       if (CR.sniffT <= 0) {
         let best = null; for (const c of SCENT) if (c.room === cur.id && c.s > .08 && (!best || c.s > best.s)) best = c;
-        if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; }
+        if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; CR.chase = false; }
         else if (CR.targetRoom || CR.visiting) startLeave();
         else { CR.state = 'wander'; const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; }
       }
       break;
     case 'track':
-      speed = 1.6 + Object.values(G.items).filter(Boolean).length * .15;
-      if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
+      speed = CR.chase ? runSpeed() * .88 : 1.6 + Object.values(G.items).filter(Boolean).length * .15;
+      if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.chase = false; CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
       break;
     case 'lunge':
       CR.lungeT -= dt; CR.x += CR.ldx * 7 * dt; CR.z += CR.ldz * 7 * dt;
@@ -1741,6 +1791,11 @@ function frame(now) {
 function tick(dt) {
   t += dt;
   if (state === 'playing') update(dt);
+  else if (state === 'opening') {
+    const o = L.opening; o.t += dt;
+    o.dr.panel.rotation.y = -1.35 * ease(Math.min(1, o.t / o.dur));
+    if (o.t >= o.dur + .08) { state = 'trans'; L.trans = { t: 0, to: o.to, from: cur.id, slam: o.run, built: false }; }
+  }
   else if (state === 'trans') {
     const T = L.trans; T.t += dt;
     if (!T.built) { fade = Math.min(1, T.t / .2); if (T.t >= .22) { enterRoom(T.to, T.from, T.slam); T.built = true; T.t = 0; } }
