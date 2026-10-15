@@ -79,7 +79,7 @@ body.touch #note{bottom:calc(env(safe-area-inset-bottom,0px) + 220px)}
 .tbtn.on{filter:brightness(1.8);box-shadow:0 0 26px currentColor}
 
 .overlay{position:fixed;inset:0;display:grid;place-items:center;padding-block:28px;padding-inline:16px;overflow-y:auto;background:radial-gradient(ellipse 60% 45% at 50% 78%,rgba(134,227,109,.06),transparent 70%),rgba(4,5,4,.9)}
-#pause{background:rgba(4,5,4,.72);cursor:pointer}
+#pause{background:rgba(4,5,4,.78)}
 .card{width:100%;max-width:35rem;display:grid;gap:20px}
 .eyebrow{margin:0;font-family:var(--f-hud);font-size:20px;letter-spacing:.2em;text-transform:uppercase;color:var(--smoke)}
 h1,h2{font-family:var(--f-display);font-weight:400;margin:0;line-height:.88;text-wrap:balance;text-shadow:3px 0 rgba(195,25,44,.65),-3px 0 rgba(134,227,109,.45)}
@@ -121,6 +121,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 .board .empty{color:var(--smoke);font-family:var(--f-text);font-size:15px;display:block;padding:4px 8px}
 .acct-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.95rem;color:var(--smoke)}
 .acct-bar b{color:var(--ash);font-weight:400}
+.pen-btn.small{font-size:.92rem;padding:7px 16px}
 .link-btn{font:inherit;color:var(--ash);background:none;border:0;border-bottom:1px solid rgba(134,227,109,.6);padding:0;cursor:pointer}
 .link-btn:focus-visible{outline:2px solid var(--leaf);outline-offset:3px}
 .form{display:grid;gap:10px}
@@ -176,6 +177,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 
 <section class="overlay" id="title">
   <div class="card">
+    <p class="acct-bar" id="acctBar" hidden></p>
     <p class="eyebrow">4:00 am. The power is out.</p>
     <h1>Last Hit</h1>
     <p class="tag">You wake on a couch in a house you don't recognise. Everyone's gone. Your only light is your pen. Find your phone, your keys and your jacket, then get out the front door. Something in the house is looking for you.</p>
@@ -213,7 +215,6 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
-    <p class="acct-bar" id="acctBar" hidden></p>
     <div class="modes">
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
@@ -231,7 +232,9 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
   <div class="card">
     <p class="eyebrow">Paused</p>
     <h2>Hold still.</h2>
-    <p class="tag">It's still in the house. Click anywhere to keep going.</p>
+    <p class="tag">It's still in the house.</p>
+    <div class="modes"><button class="pen-btn" id="resumeBtn" type="button"><span class="led"></span>Resume</button><button class="pen-btn hard" id="quitBtn" type="button"><span class="led"></span>Quit to title</button></div>
+    <p class="fine">Quitting ends this run. Items you found aren't kept.</p>
   </div>
 </section>
 
@@ -599,9 +602,9 @@ let titleMode = 'normal';
 function refreshTitle() {
   if (!supa) return;
   const bar = $('acctBar'); bar.hidden = false; bar.replaceChildren();
-  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'link-btn';
-  if (me) { bar.append('Playing as ', Object.assign(document.createElement('b'), { textContent: me.username }), ' · '); btn.textContent = 'Profile'; }
-  else { bar.append('Playing as guest · '); btn.textContent = 'Sign in to save your scores'; }
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'pen-btn hard small';
+  if (me) { bar.append('Playing as ', Object.assign(document.createElement('b'), { textContent: me.username })); btn.textContent = 'Profile'; }
+  else { bar.append('Playing as guest. Sign up to get on the leaderboard.'); btn.textContent = 'Sign up / Sign in'; }
   btn.addEventListener('click', openAccount); bar.append(btn);
   loadBoard($('boardTitle'), titleMode);
 }
@@ -631,7 +634,7 @@ function openAccount() {
   acctReturn = !$('score').hidden ? 'score' : 'title';
   $('title').hidden = true; $('score').hidden = true; $('account').hidden = false;
   $('acctOut').hidden = !!me; $('acctIn').hidden = !me;
-  if (me) showProfile(); else { setAcctTab('in'); setTimeout(() => $('acctEmail').focus(), 50); }
+  if (me) showProfile(); else { setAcctTab('up'); setTimeout(() => $('acctUser').focus(), 50); }
 }
 function closeAccount() {
   $('account').hidden = true;
@@ -1408,7 +1411,15 @@ function wakeUp(text) {
 }
 function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
 function resume() { $('pause').hidden = true; state = 'playing'; if (!padActive) lockPointer(); }
-$('pause').addEventListener('click', resume);
+$('resumeBtn').addEventListener('click', resume);
+function quitToTitle() {
+  state = 'title'; G = null;
+  for (const id of ['pause', 'score', 'over', 'account']) $(id).hidden = true;
+  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
+  if (AC) { A.crGain.gain.value = 0; A.ig.gain.value = 0; A.pGain.gain.value = 0; A.fb.gain.value = 0; A.wet.gain.value = 0; }
+  $('title').hidden = false; $('title').scrollTop = 0; refreshTitle();
+}
+$('quitBtn').addEventListener('click', quitToTitle);
 $('startBtn').addEventListener('click', () => newRun('normal'));
 $('hardBtn').addEventListener('click', () => newRun('one'));
 $('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal'));
@@ -2108,7 +2119,7 @@ function pollPad(dt) {
     P.yaw -= rx * Math.abs(rx) * 2.8 * dt * inv; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2.0 * dt * inv, -1.3, 1.3);
     if (tap(0)) input.use = true;
     if (tap(9)) pause();
-  } else if (state === 'paused') { if (tap(9) || tap(0)) resume(); }
+  } else if (state === 'paused') { if (tap(9) || tap(0)) resume(); else if (tap(1)) quitToTitle(); }
   else if ((state === 'title' || state === 'score' || state === 'over') && ready && (tap(0) || tap(9))) newRun(state === 'title' ? 'normal' : G.mode);
   padPrev = gp.buttons.map(x => x.pressed || x.value > .3);
 }
