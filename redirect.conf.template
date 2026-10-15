@@ -1,0 +1,6 @@
+server {
+    listen ${PORT};
+    location / {
+        return 301 https://lasthit-1.onrender.com$request_uri;
+    }
+}
