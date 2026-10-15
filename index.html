@@ -53,6 +53,8 @@ html,body{height:100%;margin:0;background:var(--void);color:var(--ash);overflow:
 #items span::before{content:"\25A1  "}
 #items span.got{color:var(--ash)}
 #items span.got::before{content:"\25A0  ";color:var(--leaf)}
+#prompt{position:fixed;left:50%;top:60%;transform:translateX(-50%);font-family:var(--f-hud);font-size:22px;letter-spacing:.14em;text-transform:uppercase;color:var(--ash);opacity:.85;pointer-events:none;white-space:nowrap;text-shadow:0 0 8px #000,0 0 2px #000}
+#prompt kbd{display:inline-block;min-width:1.5em;margin-right:.5em;padding:0 .3em;border:1px solid rgba(207,213,200,.6);border-radius:3px;text-align:center;font-family:inherit}
 #roomName{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);left:50%;transform:translateX(-50%);font-family:var(--f-hud);font-size:24px;letter-spacing:.32em;text-transform:uppercase;color:var(--ash);opacity:0;transition:opacity .8s;pointer-events:none;white-space:nowrap;text-shadow:0 0 8px #000}
 #roomName.show{opacity:.85}
 
@@ -125,6 +127,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
   <div id="items"><span id="itPhone">Phone</span><span id="itKeys">Keys</span><span id="itJacket">Jacket</span></div>
 </div>
 <div id="roomName"></div>
+<div id="prompt" hidden></div>
 <div id="pull" hidden></div>
 <div id="msg" role="status" aria-live="polite"></div>
 <div id="note" hidden></div>
@@ -142,9 +145,10 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <p class="tag">You wake on a couch in a house you don't recognise. Everyone's gone. Your only light is your pen. Find your phone, your keys and your jacket, then get out the front door. Something in the house is looking for you.</p>
     <dl class="controls" id="controlsDesk">
       <dt>Mouse</dt><dd>Look around</dd>
-      <dt>WASD</dt><dd>Move. Walk into a door to open it.</dd>
+      <dt>WASD</dt><dd>Move</dd>
+      <dt>E</dt><dd>Open a door or take the stairs. The higher you are, the more you fumble.</dd>
       <dt>F</dt><dd>Auto-walk on or off. Lets a laptop touchpad keep working while you move.</dd>
-      <dt>Q / E or ← →</dt><dd>Turn without the mouse</dd>
+      <dt>Z / X or ← →</dt><dd>Turn without the mouse</dd>
       <dt>Hold R</dt><dd>Run. It hears you running.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
       <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
@@ -706,7 +710,7 @@ function buildDoor(r, dr) {
     dr.stairs = diff;
   } else {
     const piv = new THREE.Group(); piv.position.set(-.45, 0, .03); g.add(piv);
-    B(.9, 2.05, .045, MAT.door, .45, 1.025, 0, piv); S(.03, MAT.brass, .82, 1.0, .045, piv);
+    B(.92, 2.12, .045, MAT.door, .46, 1.06, 0, piv); S(.03, MAT.brass, .82, 1.0, .045, piv);
     dr.panel = piv;
   }
 }
@@ -1027,7 +1031,7 @@ const input = { fwd: 0, back: 0, left: 0, right: 0, turnL: 0, turnR: 0, run: fal
 const penHeld = () => input.penKey || input.penMouse || input.penTouch;
 const breathHeld = () => input.brKey || input.brMouse || input.brTouch;
 const releaseCheck = () => { if (!penHeld() && L) L.coughLock = false; };
-const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', q: 'turnL', e: 'turnR' };
+const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', z: 'turnL', x: 'turnR' };
 let locked = false, hadLock = false;
 function lockPointer() { if (isTouch) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; if (locked) hadLock = true; else if (state === 'playing' && hadLock) pause(); });
@@ -1036,6 +1040,7 @@ addEventListener('keydown', e => {
   if (state === 'playing' && (k === ' ' || k.startsWith('arrow'))) e.preventDefault();
   if (keyMap[k]) input[keyMap[k]] = 1;
   if (k === 'r') input.run = true;
+  if (k === 'e' && state === 'playing' && !e.repeat) input.use = true;
   if (k === 'shift' || k === 'c') input.brKey = true;
   if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
   if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
@@ -1099,6 +1104,7 @@ if (isTouch) {
 
 /* ================= ui ================= */
 const sensorEl = $('sensor'), sensorBars = [...document.querySelectorAll('#sensor .bars i')];
+const promptEl = $('prompt');
 const hudEl = $('hud'), msgEl = $('msg'), whispEl = $('whisper'), pullEl = $('pull'), noteEl = $('note'), fadeEl = $('fade'), roomEl = $('roomName');
 let msgTimer = 0, roomTimer = 0;
 function say(text, dur = 2.8, sub = false) { msgEl.textContent = isTouch ? text.replace(/SPACE/g, 'HIT') : text; msgEl.classList.toggle('sub', sub); msgEl.classList.add('show'); msgTimer = dur; }
@@ -1153,7 +1159,7 @@ function wakeUp(text) {
   state = 'waking'; G.wakeT = 0; fade = 1;
   say(text, 5.5);
 }
-function pause() { if (state !== 'playing') return; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
+function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
 $('pause').addEventListener('click', () => { $('pause').hidden = true; state = 'playing'; lockPointer(); });
 $('startBtn').addEventListener('click', newRun);
 $('againBtn').addEventListener('click', newRun);
@@ -1226,6 +1232,17 @@ function crHear(x, z) {
 const runSpeed = () => 4.3 * (1 - L.high * .003);
 const crWhere = () => ({ x: CR.x, y: 2.0, z: CR.z });
 
+const FUMBLES = ['You fumble with the handle.', "Your hand slides right off the handle.", "You can't find the handle.", 'The handle turns the wrong way. Again.'];
+function tryDoor(dr) {
+  const at = { x: dr.x, y: 1.1, z: dr.z };
+  if (dr.panel && !dr.front && dr.panel.rotation.y > -.5) {
+    // past 30% high your hands stop cooperating: up to a 60% chance to fumble, and the rattle carries
+    const fumble = clamp((L.high - 30) / 70, 0, 1) * .6;
+    if (Math.random() < fumble) { sfx.rattle({ ...at, v: .5 + L.high / 200 }); noise(dr.x, dr.z, 2.5 + L.high / 25, 0); say(pick(FUMBLES), 1.6); return; }
+  }
+  if (dr.stairs && L.high > 70 && Math.random() < .25) { sfx.thud({ x: dr.x, y: .3, z: dr.z }, .35); noise(dr.x, dr.z, 8, 1); say('You stumble on the stairs.', 2); L.shake = 3; }
+  useDoor(dr);
+}
 function useDoor(dr) {
   if (dr.front) {
     const missing = Object.keys(G.items).filter(k => !G.items[k]);
@@ -1247,12 +1264,14 @@ function useDoor(dr) {
     if (run) sfx.doorBang(at); else if (loud) sfx.doorCreakLoud(at); else sfx.doorOpen(at);
     noise(dr.x, dr.z, run ? 10 : loud ? 6 : 3.5, loud ? 1 : 0);
     L.openNoisy = loud;
-    L.opening = { dr, t: 0, dur: run ? .2 : .55, to, run };
+    L.opening = { dr, t: 0, dur: run ? .2 : .55 * (1 + L.high / 100 * .8), to, run };
+    promptEl.hidden = true; L.nearDoor = null;
     state = 'opening';
     return;
   }
   L.openNoisy = run;
   if (dr.stairs) for (let i = 0; i < 6; i++) sfx.myStep(run ? .2 : .1);
+  promptEl.hidden = true; L.nearDoor = null;
   state = 'trans'; L.trans = { t: 0, to, from: cur.id, slam: run, built: false };
 }
 function exhale(coughed) {
@@ -1273,8 +1292,8 @@ function exhale(coughed) {
   if (coughed) { sfx.cough(); L.high += 4; L.coughLock = true; L.shake = 3; say('You coughed. It heard that.', 3); noise(P.x, P.z, 14, 2); }
   else { sfx.exhale(p); noise(P.x, P.z, 2.2, 0); }
 }
-function greenout() { state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
-function caught() { state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
+function greenout() { promptEl.hidden = true; state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
+function caught() { promptEl.hidden = true; state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
 function die(kind) { if (kind === 'creature') G.deathsC++; else G.deathsG++; state = 'dying'; L.dieT = 0; lamp.color.setHex(0xffe2c4); }
 
 /* ================= update ================= */
@@ -1333,12 +1352,20 @@ function update(dt) {
   L.lr = Math.max(lampRadius(), L.inhaling ? 2.2 : 0);
 
   // doors
-  let near = null;
+  let near = null; const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
   for (const dr of cur.doors) {
     const dx = P.x - dr.x, dz = P.z - dr.z, dn = dx * dr.nx + dz * dr.nz, lat = Math.abs(dx * dr.nz - dz * dr.nx);
-    if (dn < .85 && lat < (dr.front ? .8 : .55) && moving && (mvx * -dr.nx + mvz * -dr.nz) > .5) near = dr;
+    if (dn < 1.35 && lat < (dr.front ? .9 : .65) && (fx * -dr.nx + fz * -dr.nz) > .35) near = dr;
   }
-  if (near) { L.doorPush += dt; if (L.doorPush > .18) { L.doorPush = 0; useDoor(near); if (state !== 'playing') return; } } else L.doorPush = 0;
+  if (near !== L.nearDoor) {
+    L.nearDoor = near; promptEl.hidden = !near || isTouch;
+    if (near) promptEl.innerHTML = '<kbd>E</kbd>' + (near.front ? 'Front door' : near.stairs ? (near.stairs > 0 ? 'Go upstairs' : 'Go downstairs') : 'Open door');
+  }
+  if (isTouch) {
+    const pushing = near && moving && (mvx * -near.nx + mvz * -near.nz) > .5 && (P.x - near.x) * near.nx + (P.z - near.z) * near.nz < .85;
+    if (pushing) { L.doorPush += dt; if (L.doorPush > .18) { L.doorPush = 0; tryDoor(near); if (state !== 'playing') return; } } else L.doorPush = 0;
+  } else if (input.use && near) { input.use = false; tryDoor(near); if (state !== 'playing') return; }
+  input.use = false;
   L.lockCd -= dt;
   if (L.behind) {
     const b = L.behind, dn = (P.x - b.dr.x) * b.dr.nx + (P.z - b.dr.z) * b.dr.nz; b.t += dt;
@@ -1595,6 +1622,7 @@ function creatureEnters(fromRoom) {
 /* ================= ending ================= */
 let outside = null, friend = null;
 function startEnding() {
+  promptEl.hidden = true;
   state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time;
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; roomEl.classList.remove('show'); msgEl.classList.remove('show');
   L.high = 0; L.dizzy = 0; L.stat = 0; L.light = 0; L.inhaling = false;
