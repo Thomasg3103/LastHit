@@ -115,6 +115,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <dl class="controls" id="controlsDesk">
       <dt>Mouse</dt><dd>Look around</dd>
       <dt>WASD</dt><dd>Move</dd>
+      <dt>Q / E or ← →</dt><dd>Turn without the mouse. Handy on a laptop touchpad.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
       <dt>Esc</dt><dd>Pause</dd>
     </dl>
@@ -549,7 +550,7 @@ const sfx = {
 const input = { fwd: 0, back: 0, left: 0, right: 0, turnL: 0, turnR: 0, penKey: false, penMouse: false, penTouch: false, tx: 0, ty: 0 };
 const penHeld = () => input.penKey || input.penMouse || input.penTouch;
 const releaseCheck = () => { if (!penHeld() && G) G.coughLock = false; };
-const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR' };
+const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', q: 'turnL', e: 'turnR' };
 let locked = false, hadLock = false;
 function lockPointer() { if (isTouch) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 document.addEventListener('pointerlockchange', () => {
