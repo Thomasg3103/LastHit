@@ -1803,11 +1803,12 @@ function updateCreature(dt) {
       if (!goal) {
         let best = 0;
         const sums = {}; for (const c of SCENT) sums[c.room] = (sums[c.room] || 0) + c.s;
-        for (const id in sums) { if (id === 'living' || !adj[id]) continue; const gd = gdist(CR.room, id); if (gd <= 3) { const v = sums[id] / (gd + 1); if (v > best && v > .15) { best = v; goal = id; } } }
+        const cool = id => id === CR.leftRoom && G.time - (CR.leftAt ?? -99) < 20;
+        for (const id in sums) { if (id === 'living' || !adj[id] || cool(id)) continue; const gd = gdist(CR.room, id); if (gd <= 3) { const v = sums[id] / (gd + 1); if (v > best && v > .15) { best = v; goal = id; } } }
       }
       let next = null;
       if (goal && goal !== CR.room) { const path = bfs(CR.room, goal); next = path && path[1]; }
-      else { if (goal === CR.room) CR.targetRoom = null; const opts = (adj[CR.room] || []).filter(n => n !== 'living'); next = opts.length ? pick(opts) : null; }
+      else { if (goal === CR.room) CR.targetRoom = null; let opts = (adj[CR.room] || []).filter(n => n !== 'living'); if (opts.length > 1 && G.time - (CR.leftAt ?? -99) < 20) opts = opts.filter(n => n !== CR.leftRoom); next = opts.length ? pick(opts) : null; }
       if (next) {
         if (next === cur.id) { creatureEnters(CR.room); return; }
         CR.room = next;
@@ -1822,18 +1823,20 @@ function updateCreature(dt) {
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
   if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
+  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 20 && !CR.chase) startLeave(); }
   switch (CR.state) {
     case 'wander':
-      speed = .7; CR.idleT += dt;
+      speed = .7;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .4) { if (Math.random() < .45) { CR.state = 'sniff'; CR.sniffT = rnd(1.5, 2.6); } else { const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; } }
-      if (CR.idleT > 15 || CR.targetRoom) startLeave();
+      if (CR.targetRoom) startLeave();
       break;
     case 'sniff':
       sniffing = true; CR.sniffT -= dt; CR.sniffSfx -= dt;
       if (CR.sniffSfx <= 0) { sfx.sniff(crWhere(), .32); CR.sniffSfx = .8; }
       if (CR.sniffT <= 0) {
         let best = null; for (const c of SCENT) if (c.room === cur.id && c.s > .08 && (!best || c.s > best.s)) best = c;
-        if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; CR.chase = false; }
+        if (CR.visiting) startLeave();
+        else if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; CR.chase = false; }
         else if (CR.targetRoom || CR.visiting) startLeave();
         else { CR.state = 'wander'; const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; }
       }
@@ -1850,10 +1853,10 @@ function updateCreature(dt) {
     case 'leave': {
       speed = 2.2; const dr = CR.leaveDoor;
       if (!dr || !cur.doors.includes(dr)) { CR.state = 'wander'; break; }
-      tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45;
-      if (Math.hypot(tx - CR.x, tz - CR.z) < .35) {
+      tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45; CR.leaveT = (CR.leaveT || 0) + dt;
+      if (Math.hypot(tx - CR.x, tz - CR.z) < .35 || CR.leaveT > 6) {
         sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); if (dr.panel) { dr.panel.rotation.y = -1; L.closing = { dr, t: 0, slam: false }; }
-        CR.room = dr.to; CR.visiting = false; CR.timer = rnd(3, 6); if (CR.targetRoom === dr.to) CR.targetRoom = null; creature.visible = false; return;
+        CR.leftRoom = cur.id; CR.leftAt = G.time; CR.room = dr.to; CR.visiting = false; CR.timer = rnd(3, 6); if (CR.targetRoom === dr.to) CR.targetRoom = null; creature.visible = false; return;
       }
       break;
     }
@@ -1881,7 +1884,7 @@ function startLeave() {
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
   if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); dr = opts.length ? pick(opts) : null; }
   if (!dr) { CR.idleT = 0; CR.visiting = false; return; }
-  CR.state = 'leave'; CR.leaveDoor = dr; CR.idleT = 0;
+  CR.state = 'leave'; CR.leaveDoor = dr; CR.idleT = 0; CR.leaveT = 0; CR.chase = false;
 }
 function creatureEnters(fromRoom) {
   CR.room = cur.id;
