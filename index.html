@@ -99,6 +99,12 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 .pen-btn:active{transform:scale(.97)}
 .pen-btn:focus-visible{outline:2px solid var(--leaf);outline-offset:4px}
 .pen-btn[disabled]{opacity:.5;cursor:wait}
+.modes{display:flex;flex-wrap:wrap;gap:12px}
+.pen-btn.hard{background:transparent;color:var(--ash);box-shadow:inset 0 0 0 1px rgba(207,213,200,.55)}
+.pen-btn.hard .led{background:var(--blood);box-shadow:0 0 10px var(--blood)}
+.pen-btn.hard:hover{box-shadow:inset 0 0 0 1px var(--ash),0 0 34px rgba(195,25,44,.35)}
+.fine strong{color:var(--ash);font-weight:400}
+#modeTag{color:var(--blood);font-size:18px;letter-spacing:.14em}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin:0}
 .stats div{display:grid;gap:2px;min-width:0}
 .stats dt{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--smoke)}
@@ -124,7 +130,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <div><div class="lbl"><span>Breath</span><b id="breathLbl"></b></div><div class="bar breath"><i id="breathBar"></i></div></div>
     <div id="sensor" data-l="0"><span>Sensor</span><span class="bars"><i></i><i></i><i></i><i></i><i></i></span></div>
   </div>
-  <div id="items"><span id="itPhone">Phone</span><span id="itKeys">Keys</span><span id="itJacket">Jacket</span></div>
+  <div id="items"><span id="itPhone">Phone</span><span id="itKeys">Keys</span><span id="itJacket">Jacket</span><b id="modeTag" hidden>One life</b></div>
 </div>
 <div id="roomName"></div>
 <div id="prompt" hidden></div>
@@ -177,7 +183,11 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
-    <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
+    <div class="modes">
+      <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
+      <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
+    </div>
+    <p class="fine"><strong>Wake up</strong> is the normal game: die and you wake on the couch with your items kept. <strong>One life</strong> has no couch. Die once and the run is over.</p>
     <p class="fine">Headphones on. Older versions: <a href="maze.html">Last Hit 3D</a> and <a href="classic.html">Last Hit Classic</a>.</p>
   </div>
 </section>
@@ -190,9 +200,27 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
   </div>
 </section>
 
+<section class="overlay" id="over" hidden>
+  <div class="card">
+    <p class="eyebrow">One life · Run over</p>
+    <h2 id="overTitle">You didn't wake up.</h2>
+    <p class="tag" id="overSub"></p>
+    <dl class="stats">
+      <div><dt>Items</dt><dd id="oItems">0/3</dd></div>
+      <div><dt>Pulls</dt><dd id="oPulls">0</dd></div>
+      <div><dt>Top high</dt><dd id="oPeak">0%</dd></div>
+      <div><dt>Time</dt><dd id="oTime">0:00</dd></div>
+    </dl>
+    <div class="modes">
+      <button class="pen-btn hard" id="overAgain" type="button"><span class="led"></span>One more life</button>
+      <button class="pen-btn" id="overTitleBtn" type="button"><span class="led"></span>Back to the title</button>
+    </div>
+  </div>
+</section>
+
 <section class="overlay" id="score" hidden>
   <div class="card">
-    <p class="eyebrow">You left the house</p>
+    <p class="eyebrow" id="scoreEyebrow">You left the house</p>
     <h2>Last Hit</h2>
     <p class="tag">Some nights you don't remember. This one you won't forget.</p>
     <dl class="stats">
@@ -1056,7 +1084,7 @@ addEventListener('keydown', e => {
   if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
   if (k === ' ' && state === 'playing') input.penKey = true;
   if (k === 'p' && state === 'playing') pause();
-  if (k === 'enter' && ready && (state === 'title' || state === 'score')) newRun();
+  if (k === 'enter' && ready && (state === 'title' || state === 'score' || state === 'over')) newRun(state === 'title' ? 'normal' : G.mode);
 });
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
@@ -1148,12 +1176,13 @@ let SCENT = [];
 const CR = { room: 'storage', x: 0, z: 0, yaw: 0, state: 'wander', tx: 0, tz: 0, timer: 10, targetRoom: null, leaveDoor: null, lungeT: 0, ldx: 0, ldz: 0, stepAcc: 0, sniffT: 0, idleT: 0, cloud: null, moving: 0, sniffSfx: 0 };
 const freshLife = () => ({ high: 0, light: .5, inhaling: false, pull: 0, coughLock: false, breath: 1, holding: false, breathLock: 0, invertT: 0, driftA: 0, lockCd: 0, stepAcc: 0, doorPush: 0, closing: null, dizzy: 0, stat: 0, hb: 1, shake: 0, near: 0, lr: 0, runNoise: 0, noteShown: null });
 
-function newRun() {
+function newRun(mode = 'normal') {
   initAudio();
   if (AC) { A.master.gain.cancelScheduledValues(AC.currentTime); A.master.gain.setValueAtTime(.9, AC.currentTime); A.droneGain.gain.value = .045; A.windGain.gain.value = .025; }
   initHouse();
-  G = { items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
-  $('title').hidden = true; $('score').hidden = true; $('pause').hidden = true;
+  G = { mode, items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
+  $('title').hidden = true; $('score').hidden = true; $('over').hidden = true; $('pause').hidden = true;
+  $('modeTag').hidden = mode !== 'one';
   scene.fog = null; scene.background.setHex(0x000000);
   wakeUp("You wake on a couch you don't recognise. 4 am. Power's out. Find your phone, your keys and your jacket.");
   lockPointer();
@@ -1172,8 +1201,11 @@ function wakeUp(text) {
 function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
 function resume() { $('pause').hidden = true; state = 'playing'; if (!padActive) lockPointer(); }
 $('pause').addEventListener('click', resume);
-$('startBtn').addEventListener('click', newRun);
-$('againBtn').addEventListener('click', newRun);
+$('startBtn').addEventListener('click', () => newRun('normal'));
+$('hardBtn').addEventListener('click', () => newRun('one'));
+$('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal'));
+$('overAgain').addEventListener('click', () => newRun('one'));
+$('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; });
 
 function enterRoom(id, from, slam) {
   if (id === 'living' && from !== null) { if (resetLayout()) say('The house settles. Everything is back where it was.', 3); }
@@ -1305,7 +1337,19 @@ function exhale(coughed) {
 }
 function greenout() { promptEl.hidden = true; state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
 function caught() { promptEl.hidden = true; state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
-function die(kind) { if (kind === 'creature') G.deathsC++; else G.deathsG++; state = 'dying'; L.dieT = 0; lamp.color.setHex(0xffe2c4); }
+function gameOver() {
+  state = 'over';
+  if (document.pointerLockElement) document.exitPointerLock();
+  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
+  const got = Object.values(G.items).filter(Boolean).length, s = Math.floor(G.time);
+  $('overSub').textContent = G.lastDeath === 'green'
+    ? 'You greened out on a stranger\'s floor, and this time the couch never came.'
+    : 'It found you in the dark. There is no couch to wake up on this time.';
+  $('oItems').textContent = got + '/3'; $('oPulls').textContent = G.pulls; $('oPeak').textContent = Math.round(G.peak) + '%';
+  $('oTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  $('over').hidden = false;
+}
+function die(kind) { G.lastDeath = kind; if (kind === 'creature') G.deathsC++; else G.deathsG++; state = 'dying'; L.dieT = 0; lamp.color.setHex(0xffe2c4); }
 
 /* ================= update ================= */
 function update(dt) {
@@ -1709,10 +1753,12 @@ function showScore() {
   $('sDeathSplit').textContent = `${G.deathsC} caught · ${G.deathsG} greened out`;
   $('sTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   const run = { time: s, pulls: G.pulls, deaths: G.deathsC + G.deathsG };
-  let best = null; try { best = JSON.parse(localStorage.getItem('houseparty.best')); } catch (e) {}
+  const bestKey = G.mode === 'one' ? 'lasthit.best.onelife' : 'houseparty.best';
+  $('scoreEyebrow').textContent = G.mode === 'one' ? 'You left the house · One life' : 'You left the house';
+  let best = null; try { best = JSON.parse(localStorage.getItem(bestKey)); } catch (e) {}
   const news = [];
   if (best) { for (const k of ['time', 'pulls', 'deaths']) if (run[k] < best[k]) { best[k] = run[k]; news.push(k); } } else best = { ...run };
-  try { localStorage.setItem('houseparty.best', JSON.stringify(best)); } catch (e) {}
+  try { localStorage.setItem(bestKey, JSON.stringify(best)); } catch (e) {}
   const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
   $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
   $('score').hidden = false; msgEl.classList.remove('show');
@@ -1850,7 +1896,7 @@ function pollPad(dt) {
     if (tap(0)) input.use = true;
     if (tap(9)) pause();
   } else if (state === 'paused') { if (tap(9) || tap(0)) resume(); }
-  else if ((state === 'title' || state === 'score') && ready && (tap(0) || tap(9))) newRun();
+  else if ((state === 'title' || state === 'score' || state === 'over') && ready && (tap(0) || tap(9))) newRun(state === 'title' ? 'normal' : G.mode);
   padPrev = gp.buttons.map(x => x.pressed || x.value > .3);
 }
 function tick(dt) {
@@ -1870,13 +1916,13 @@ function tick(dt) {
   else if (state === 'waking') { G.wakeT += dt; fade = Math.max(0, 1 - G.wakeT / 1.6); if (G.wakeT >= 1.6) state = 'playing'; }
   else if (state === 'greenout') { L.goT += dt; if (L.goT > 3.6) die('green'); }
   else if (state === 'scare') { L.scT += dt; if (L.scT > 1.2) die('creature'); }
-  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 1.3) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
+  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 1.3 && G.mode === 'one') gameOver(); else if (L.dieT > 1.3) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
   else if (state === 'ending') updateEnding(dt);
   if (G && L) render(dt); else { renderer.setRenderTarget(null); renderer.clear(); }
 }
 requestAnimationFrame(frame);
 ready = true;
-const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up';
+const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
 </html>
