@@ -153,6 +153,15 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
       <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
     </dl>
+    <dl class="controls" id="controlsPad" hidden>
+      <dt>Left stick</dt><dd>Move. Click it in to run.</dd>
+      <dt>Right stick</dt><dd>Look around</dd>
+      <dt>A / Cross</dt><dd>Open a door or take the stairs</dd>
+      <dt>RT / R2</dt><dd>Hit the pen</dd>
+      <dt>LT / L2</dt><dd>Hold your breath</dd>
+      <dt>LB / L1</dt><dd>Run</dd>
+      <dt>Start</dt><dd>Pause</dd>
+    </dl>
     <dl class="controls" id="controlsTouch" hidden>
       <dt>Left stick</dt><dd>Move. Push it all the way to run.</dd>
       <dt>Drag right side</dt><dd>Look around</dd>
@@ -1028,12 +1037,13 @@ const sfx = {
 
 /* ================= input ================= */
 const input = { fwd: 0, back: 0, left: 0, right: 0, turnL: 0, turnR: 0, run: false, penKey: false, penMouse: false, penTouch: false, brKey: false, brMouse: false, brTouch: false, tx: 0, ty: 0, auto: false };
-const penHeld = () => input.penKey || input.penMouse || input.penTouch;
-const breathHeld = () => input.brKey || input.brMouse || input.brTouch;
+const penHeld = () => input.penKey || input.penMouse || input.penTouch || input.penPad;
+const breathHeld = () => input.brKey || input.brMouse || input.brTouch || input.brPad;
+const runHeld = () => input.run || input.padRun;
 const releaseCheck = () => { if (!penHeld() && L) L.coughLock = false; };
 const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', z: 'turnL', x: 'turnR' };
 let locked = false, hadLock = false;
-function lockPointer() { if (isTouch) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
+function lockPointer() { if (isTouch || padActive) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; if (locked) hadLock = true; else if (state === 'playing' && hadLock) pause(); });
 addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
@@ -1160,7 +1170,8 @@ function wakeUp(text) {
   say(text, 5.5);
 }
 function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
-$('pause').addEventListener('click', () => { $('pause').hidden = true; state = 'playing'; lockPointer(); });
+function resume() { $('pause').hidden = true; state = 'playing'; if (!padActive) lockPointer(); }
+$('pause').addEventListener('click', resume);
 $('startBtn').addEventListener('click', newRun);
 $('againBtn').addEventListener('click', newRun);
 
@@ -1256,7 +1267,7 @@ function useDoor(dr) {
   let to = dr.to;
   if (cur.node.enteredHigh && dr.to === cur.node.entryFrom) to = shuffleFrom(cur.id, dr.to);
   input.auto = false;
-  const run = input.run && !L.holding, at = { x: dr.x, y: 1.2, z: dr.z };
+  const run = runHeld() && !L.holding, at = { x: dr.x, y: 1.2, z: dr.z };
   if (L.behind && L.behind.dr === dr) L.behind = null;
   if (dr.panel && dr.panel.rotation.y > -.5) {
     // running bangs it open; walking usually opens quietly, but some doors creak loud enough to carry
@@ -1313,7 +1324,7 @@ function update(dt) {
   L.breathLock -= dt;
 
   // movement
-  let f = Math.min(1, (input.fwd - input.back) - input.ty + (input.auto ? 1 : 0)), s = (input.right - input.left) + input.tx;
+  let f = Math.min(1, (input.fwd - input.back) - input.ty - (input.gy || 0) + (input.auto ? 1 : 0)), s = (input.right - input.left) + input.tx + (input.gx || 0);
   let turn = (input.turnR - input.turnL) * 2.2 * dt;
   if (L.invertT > 0) { L.invertT -= dt; f = -f; s = -s; turn = -turn; }
   else if (L.high > 82 && Math.random() < dt * .1) { L.invertT = 1.6; say('Your legs stop listening.', 1.8); }
@@ -1326,7 +1337,7 @@ function update(dt) {
     s += Math.cos(L.driftA) * k; f += Math.sin(L.driftA) * k;
   }
   const l = Math.hypot(f, s); if (l > 1) { f /= l; s /= l; }
-  const running = input.run && moving && !L.holding && !L.inhaling;
+  const running = runHeld() && moving && !L.holding && !L.inhaling;
   const sp = (running ? 4.3 : 2.3) * (1 - L.high * .003) * (L.inhaling ? .6 : 1) * (L.holding ? .55 : 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const mvx = -sy * f + cy * s, mvz = -cy * f - sy * s;
@@ -1816,7 +1827,34 @@ function frame(now) {
   tick(dt);
   requestAnimationFrame(frame);
 }
+/* ---------- game controller ---------- */
+let padActive = false, padPrev = [];
+const dead = v => Math.abs(v) < .18 ? 0 : (v - Math.sign(v) * .18) / .82;
+addEventListener('gamepadconnected', () => { padActive = true; $('controlsPad').hidden = false; $('controlsDesk').hidden = true; $('controlsTouch').hidden = true; if (state === 'playing') say('Controller connected.', 2); });
+addEventListener('gamepaddisconnected', () => { if (!(navigator.getGamepads ? [...navigator.getGamepads()] : []).some(Boolean)) { padActive = false; input.gx = input.gy = 0; input.penPad = input.brPad = input.padRun = false; } });
+function pollPad(dt) {
+  const pads = navigator.getGamepads ? [...navigator.getGamepads()].filter(Boolean) : [];
+  const gp = pads[0]; if (!gp) return;
+  const b = i => !!(gp.buttons[i] && (gp.buttons[i].pressed || gp.buttons[i].value > .3)), tap = i => b(i) && !padPrev[i];
+  const ax = i => dead(gp.axes[i] || 0);
+  input.gx = ax(0); input.gy = ax(1);
+  if (tap(10)) input.padSprint = true;                       // click the left stick to run until you stop
+  if (Math.hypot(input.gx, input.gy) < .2) input.padSprint = false;
+  input.padRun = b(4) || !!input.padSprint;
+  const pen = b(7), br = b(6);
+  if (input.penPad && !pen) { input.penPad = false; releaseCheck(); } else input.penPad = pen;
+  input.brPad = br;
+  if (state === 'playing') {
+    const inv = L && L.invertT > 0 ? -1 : 1, rx = ax(2), ry = ax(3);
+    P.yaw -= rx * Math.abs(rx) * 2.8 * dt * inv; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2.0 * dt * inv, -1.3, 1.3);
+    if (tap(0)) input.use = true;
+    if (tap(9)) pause();
+  } else if (state === 'paused') { if (tap(9) || tap(0)) resume(); }
+  else if ((state === 'title' || state === 'score') && ready && (tap(0) || tap(9))) newRun();
+  padPrev = gp.buttons.map(x => x.pressed || x.value > .3);
+}
 function tick(dt) {
+  pollPad(dt);
   t += dt;
   if (state === 'playing') update(dt);
   else if (state === 'opening') {
