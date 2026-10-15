@@ -136,9 +136,9 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <dt>WASD</dt><dd>Move. Walk into a door to open it.</dd>
       <dt>F</dt><dd>Auto-walk on or off. Lets a laptop touchpad keep working while you move.</dd>
       <dt>Q / E or ← →</dt><dd>Turn without the mouse</dd>
-      <dt>Shift</dt><dd>Run. It hears you running.</dd>
+      <dt>Hold R</dt><dd>Run. It hears you running.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
-      <dt>Hold C / right click</dt><dd>Hold your breath</dd>
+      <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
     </dl>
     <dl class="controls" id="controlsTouch" hidden>
       <dt>Left stick</dt><dd>Move. Push it all the way to run.</dd>
@@ -956,8 +956,8 @@ addEventListener('keydown', e => {
   const k = e.key.toLowerCase();
   if (state === 'playing' && (k === ' ' || k.startsWith('arrow'))) e.preventDefault();
   if (keyMap[k]) input[keyMap[k]] = 1;
-  if (k === 'shift') input.run = true;
-  if (k === 'c') input.brKey = true;
+  if (k === 'r') input.run = true;
+  if (k === 'shift' || k === 'c') input.brKey = true;
   if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
   if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
   if (k === ' ' && state === 'playing') input.penKey = true;
@@ -967,8 +967,8 @@ addEventListener('keydown', e => {
 addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
   if (keyMap[k]) input[keyMap[k]] = 0;
-  if (k === 'shift') input.run = false;
-  if (k === 'c') input.brKey = false;
+  if (k === 'r') input.run = false;
+  if (k === 'shift' || k === 'c') input.brKey = false;
   if (k === ' ') { input.penKey = false; releaseCheck(); }
 });
 const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
