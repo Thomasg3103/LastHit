@@ -1205,7 +1205,7 @@ function creatureVisit(entry) {
   if (!best) return;
   G.lastVisit = G.time;
   CR.room = cur.id; CR.x = best.x; CR.z = best.z; CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
-  CR.state = 'sniff'; CR.sniffT = 3; CR.sniffSfx = 0; CR.grace = 3; CR.cloud = null; CR.targetRoom = null; CR.visiting = true;
+  CR.state = 'sniff'; CR.sniffT = 2; CR.sniffSfx = 0; CR.grace = 2; CR.cloud = null; CR.targetRoom = null; CR.visiting = true;
   CR.avoid = entry ? entry.to : null;
   L.stat = .3;
 }
@@ -1312,14 +1312,14 @@ function update(dt) {
   G.time += dt;
   // breath
   if (breathHeld() && L.breath > 0 && L.breathLock <= 0 && !L.inhaling) {
-    L.holding = true; L.breath -= dt / (9 * (1 - L.high / 100 * .6)); L.holdT = (L.holdT || 0) + dt;
+    L.holding = true; L.breath -= dt / (14 * (1 - L.high / 100 * .5)); L.holdT = (L.holdT || 0) + dt;
     if (L.breath <= 0) { L.breath = 0; L.holding = false; L.holdT = 0; L.breathLock = 3; sfx.gasp(); sfx.cough(); L.shake = 3; say('You run out of air and start coughing.', 2.5); noise(P.x, P.z, 14, 2); }
   } else {
     if (L.holding) {
-      if (L.holdT > 4) { sfx.gaspSoft(); noise(P.x, P.z, 3.5, 0); } else sfx.breathOut();
+      if (L.holdT > 6) { sfx.gaspSoft(); noise(P.x, P.z, 3.5, 0); } else sfx.breathOut();
       L.holdT = 0;
     }
-    L.holding = false; L.breath = Math.min(1, L.breath + dt / 10);
+    L.holding = false; L.breath = Math.min(1, L.breath + dt / 7);
   }
   L.breathLock -= dt;
 
@@ -1562,7 +1562,7 @@ function updateCreature(dt) {
     case 'wander':
       speed = .7; CR.idleT += dt;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .4) { if (Math.random() < .45) { CR.state = 'sniff'; CR.sniffT = rnd(1.5, 2.6); } else { const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; } }
-      if (CR.idleT > 26 || CR.targetRoom) startLeave();
+      if (CR.idleT > 15 || CR.targetRoom) startLeave();
       break;
     case 'sniff':
       sniffing = true; CR.sniffT -= dt; CR.sniffSfx -= dt;
@@ -1584,7 +1584,7 @@ function updateCreature(dt) {
       if (CR.lungeT <= 0) { CR.state = 'sniff'; CR.sniffT = 1.4; }
       break;
     case 'leave': {
-      speed = 1; const dr = CR.leaveDoor;
+      speed = 2.2; const dr = CR.leaveDoor;
       if (!dr || !cur.doors.includes(dr)) { CR.state = 'wander'; break; }
       tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45;
       if (Math.hypot(tx - CR.x, tz - CR.z) < .35) {
