@@ -1090,7 +1090,7 @@ const FURN = {
     onWall(r, () => F.tv(1.3), 1.6, .45);
     onWall(r, () => F.armchair(), 1.0, .95);
     // the living room is the one place with working lamps, so you can see without the pen
-    for (let k = 0; k < 2; k++) onWall(r, () => {
+    for (let k = 0; k < 4; k++) onWall(r, () => {
       const g = new THREE.Group(); C(.12, .14, .03, MAT.metal, 0, .015, 0, g, 12); C(.012, .012, 1.45, MAT.metal, 0, .74, 0, g, 6);
       const sh = mk(new THREE.CylinderGeometry(.14, .22, .26, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide }), 0, 1.5, 0, g); sh.castShadow = false;
       g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 15, dist: 12, kind: 'safe' };
