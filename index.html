@@ -209,7 +209,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <ul class="rules">
       <li>It's blind. It hunts by <strong>smell and sound</strong>. Every hit leaves a cloud it can follow. Running, slamming doors and your ringing phone bring it running.</li>
       <li>Hold your breath and you make no sound at all, until you run out of air.</li>
-      <li>Past <strong>75% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
+      <li>Past <strong>60% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
       <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
       <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
@@ -1434,7 +1434,7 @@ function enterRoom(id, from, slam) {
   if (id === 'living' && from !== null) { if (resetLayout()) say('The house settles. Everything is back where it was.', 3); }
   buildRoom(id);
   const node = NODES[id];
-  node.enteredHigh = L.high >= 75; node.entryFrom = from;
+  node.enteredHigh = L.high >= 60; node.entryFrom = from;
   let dr = from ? cur.doors.find(d => d.to === from) : null;
   if (!dr && from === null && cur.couch) { P.x = cur.couch.x; P.z = cur.couch.z; P.yaw = Math.atan2(-cur.couch.nx, -cur.couch.nz); P.pitch = 0; }
   else {
