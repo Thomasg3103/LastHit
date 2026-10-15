@@ -119,6 +119,16 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 .board .tm{font-variant-numeric:tabular-nums;text-align:right}
 .board .tm small{color:var(--smoke);font-size:15px;margin-left:8px}
 .board .empty{color:var(--smoke);font-family:var(--f-text);font-size:15px;display:block;padding:4px 8px}
+.acct-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:.95rem;color:var(--smoke)}
+.acct-bar b{color:var(--ash);font-weight:400}
+.link-btn{font:inherit;color:var(--ash);background:none;border:0;border-bottom:1px solid rgba(134,227,109,.6);padding:0;cursor:pointer}
+.link-btn:focus-visible{outline:2px solid var(--leaf);outline-offset:3px}
+.form{display:grid;gap:10px}
+.form label{display:grid;gap:4px;font-family:var(--f-hud);font-size:17px;letter-spacing:.12em;text-transform:uppercase;color:var(--smoke)}
+.form input{font:inherit;font-family:var(--f-text);font-size:1rem;letter-spacing:0;text-transform:none;color:var(--ash);background:rgba(207,213,200,.06);border:1px solid rgba(207,213,200,.3);border-radius:8px;padding:10px 14px;min-width:0}
+.form input:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
+.form .err{margin:0;color:#ff8a8a;font-size:.92rem;min-height:1.4em}
+.form .ok{color:var(--leaf)}
 .submit{display:grid;gap:8px}
 .submit label{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--smoke)}
 .submit .row{display:flex;gap:10px;flex-wrap:wrap}
@@ -203,6 +213,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
+    <p class="acct-bar" id="acctBar" hidden></p>
     <div class="modes">
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
@@ -221,6 +232,33 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <p class="eyebrow">Paused</p>
     <h2>Hold still.</h2>
     <p class="tag">It's still in the house. Click anywhere to keep going.</p>
+  </div>
+</section>
+
+<section class="overlay" id="account" hidden>
+  <div class="card">
+    <div id="acctOut">
+      <p class="eyebrow">Player account</p>
+      <h2 id="acctHead">Sign in</h2>
+      <div class="tabs" id="acctTabs" style="margin-block:16px"><button type="button" data-tab="in" class="on">Sign in</button><button type="button" data-tab="up">Create account</button></div>
+      <form class="form" id="acctForm" novalidate>
+        <label id="userRow" hidden>Username<input id="acctUser" maxlength="16" autocomplete="username" placeholder="3 to 16 letters, numbers, . _ -"></label>
+        <label>Email<input id="acctEmail" type="email" autocomplete="email"></label>
+        <label>Password<input id="acctPass" type="password" minlength="6" autocomplete="current-password"></label>
+        <p class="err" id="acctErr" role="alert"></p>
+        <div class="modes"><button class="pen-btn" id="acctSubmit" type="submit"><span class="led"></span>Sign in</button><button class="pen-btn hard" id="acctBack" type="button"><span class="led"></span>Play as guest</button></div>
+      </form>
+    </div>
+    <div id="acctIn" hidden>
+      <p class="eyebrow">Player account</p>
+      <h2 id="profName">Player</h2>
+      <dl class="stats">
+        <div><dt>Best · Normal</dt><dd id="profNormal">–</dd></div>
+        <div><dt>Best · One life</dt><dd id="profOne">–</dd></div>
+        <div><dt>Escapes</dt><dd id="profCount">0</dd></div>
+      </dl>
+      <div class="modes" style="margin-top:20px"><button class="pen-btn" id="profBack" type="button"><span class="led"></span>Back</button><button class="pen-btn hard" id="signOut" type="button"><span class="led"></span>Sign out</button></div>
+    </div>
   </div>
 </section>
 
@@ -254,11 +292,10 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <div><dt>Time</dt><dd id="sTime">0:00</dd></div>
     </dl>
     <p class="fine" id="sBest"></p>
-    <form class="submit" id="submitForm" hidden>
-      <label for="playerName">Put your time on the leaderboard</label>
-      <div class="row"><input id="playerName" maxlength="16" autocomplete="nickname" placeholder="Your name" required><button class="pen-btn" id="submitBtn" type="submit"><span class="led"></span>Submit</button></div>
+    <div class="submit" id="submitBox" hidden>
       <p class="fine" id="submitMsg" role="status"></p>
-    </form>
+      <button class="pen-btn" id="submitBtn" type="button" hidden><span class="led"></span>Save to leaderboard</button>
+    </div>
     <ol class="board" id="boardScore" hidden></ol>
     <button class="pen-btn" id="againBtn" type="button"><span class="led"></span>Back to the party</button>
   </div>
@@ -530,64 +567,145 @@ const F = {
   crib() { const g = new THREE.Group(); B(1.2, .05, .65, MAT.white, 0, .45, 0, g); for (let x = -.58; x <= .58; x += .08) for (const z of [-.31, .31]) C(.01, .01, .55, MAT.white, x, .72, z, g, 4); return g; }
 };
 
-/* ================= online leaderboard (Supabase) ================= */
-// Paste the project's URL and anon (public) key here. Row level security in supabase/schema.sql
-// only lets the browser read scores and add new ones.
+/* ================= accounts + online leaderboard (Supabase) ================= */
+// Paste the project's URL and anon (public) key here. The row level security in
+// supabase/migrations only lets players read the board and add scores as themselves.
 const SUPABASE_URL = '';
 const SUPABASE_ANON_KEY = '';
 const boardOn = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
-async function sbFetch(path, opts = {}) {
-  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...opts, headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
-  const text = await r.text();
-  if (!r.ok) throw new Error(text || r.statusText);
-  return text ? JSON.parse(text) : null;
-}
+let supa = null, me = null; // me = { id, username }
 const fmtTime = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
-const topScores = mode => sbFetch(`scores?select=id,name,time_sec,pulls,deaths&mode=eq.${mode}&order=time_sec.asc,created_at.asc&limit=10`);
-function renderBoard(el, rows, mine) {
+const emptyRow = text => { const li = document.createElement('li'), sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = text; li.style.display = 'block'; li.append(sp); return li; };
+function renderBoard(el, rows) {
   el.replaceChildren();
-  if (!rows.length) { const li = document.createElement('li'), sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = 'No escapes yet. Be the first.'; li.append(sp); li.style.display = 'block'; el.append(li); return; }
+  if (!rows.length) { el.append(emptyRow('No escapes yet. Be the first.')); return; }
   rows.forEach((r, i) => {
-    const li = document.createElement('li'); if (r.id === mine) li.className = 'me';
+    const li = document.createElement('li'); if (me && r.user_id === me.id) li.className = 'me';
     const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = i + 1;
-    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.username;
     const tm = document.createElement('span'); tm.className = 'tm'; tm.textContent = fmtTime(r.time_sec);
     const sm = document.createElement('small'); sm.textContent = `${r.pulls} pulls · ${r.deaths} deaths`; tm.append(sm);
     li.append(rk, nm, tm); el.append(li);
   });
 }
-async function loadBoard(el, mode, mine = null) {
-  el.replaceChildren(Object.assign(document.createElement('li'), { innerHTML: '<span class="empty">Loading…</span>' }));
-  try { renderBoard(el, await topScores(mode), mine); }
-  catch (e) { el.replaceChildren(Object.assign(document.createElement('li'), { innerHTML: '<span class="empty">Couldn\'t reach the leaderboard. Check your connection and try again.</span>' })); }
+async function loadBoard(el, mode) {
+  if (!supa) return;
+  el.replaceChildren(emptyRow('Loading…'));
+  const { data, error } = await supa.from('leaderboard').select('id,user_id,username,time_sec,pulls,deaths').eq('mode', mode).order('time_sec').order('created_at').limit(10);
+  if (error) el.replaceChildren(emptyRow("Couldn't reach the leaderboard. Check your connection and try again."));
+  else renderBoard(el, data);
 }
-if (boardOn) {
-  $('titleBoard').hidden = false;
-  loadBoard($('boardTitle'), 'normal');
-  $('titleTabs').addEventListener('click', e => {
-    const b = e.target.closest('button'); if (!b) return;
-    for (const x of $('titleTabs').children) x.classList.toggle('on', x === b);
-    loadBoard($('boardTitle'), b.dataset.mode);
-  });
+let titleMode = 'normal';
+function refreshTitle() {
+  if (!supa) return;
+  const bar = $('acctBar'); bar.hidden = false; bar.replaceChildren();
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'link-btn';
+  if (me) { bar.append('Playing as ', Object.assign(document.createElement('b'), { textContent: me.username }), ' · '); btn.textContent = 'Profile'; }
+  else { bar.append('Playing as guest · '); btn.textContent = 'Sign in to save your scores'; }
+  btn.addEventListener('click', openAccount); bar.append(btn);
+  loadBoard($('boardTitle'), titleMode);
 }
-let lastRun = null;
-$('submitForm').addEventListener('submit', async e => {
+async function loadMe(user) {
+  if (!user) { me = null; return; }
+  const { data } = await supa.from('profiles').select('username').eq('id', user.id).maybeSingle();
+  me = { id: user.id, username: data ? data.username : (user.user_metadata && user.user_metadata.username) || 'player' };
+}
+// account screen
+let acctTab = 'in', acctReturn = 'title';
+function setAcctTab(tab) {
+  acctTab = tab;
+  for (const b of $('acctTabs').children) b.classList.toggle('on', b.dataset.tab === tab);
+  $('userRow').hidden = tab !== 'up'; $('acctHead').textContent = tab === 'up' ? 'Create account' : 'Sign in';
+  $('acctSubmit').lastChild.textContent = tab === 'up' ? 'Create account' : 'Sign in';
+  $('acctPass').autocomplete = tab === 'up' ? 'new-password' : 'current-password';
+  $('acctErr').textContent = ''; $('acctErr').classList.remove('ok');
+}
+async function showProfile() {
+  $('profName').textContent = me.username;
+  $('profNormal').textContent = $('profOne').textContent = '…'; $('profCount').textContent = '…';
+  const { data } = await supa.from('scores').select('mode,time_sec').eq('user_id', me.id);
+  const rows = data || [], best = m => { const t = rows.filter(r => r.mode === m).map(r => r.time_sec); return t.length ? fmtTime(Math.min(...t)) : '–'; };
+  $('profNormal').textContent = best('normal'); $('profOne').textContent = best('one'); $('profCount').textContent = rows.length;
+}
+function openAccount() {
+  acctReturn = !$('score').hidden ? 'score' : 'title';
+  $('title').hidden = true; $('score').hidden = true; $('account').hidden = false;
+  $('acctOut').hidden = !!me; $('acctIn').hidden = !me;
+  if (me) showProfile(); else { setAcctTab('in'); setTimeout(() => $('acctEmail').focus(), 50); }
+}
+function closeAccount() {
+  $('account').hidden = true;
+  if (acctReturn === 'score') { $('score').hidden = false; updateSubmit(); } else { $('title').hidden = false; refreshTitle(); }
+}
+$('acctTabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) setAcctTab(b.dataset.tab); });
+$('acctBack').addEventListener('click', closeAccount);
+$('profBack').addEventListener('click', closeAccount);
+$('signOut').addEventListener('click', async () => { await supa.auth.signOut(); me = null; closeAccount(); });
+$('acctForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const name = $('playerName').value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 16);
-  if (!name) { $('submitMsg').textContent = 'Type a name first.'; return; }
-  if (!lastRun || lastRun.sent) return;
-  try { localStorage.setItem('lasthit.name', name); } catch (err) {}
-  $('submitBtn').disabled = true; $('submitMsg').textContent = 'Sending…';
-  try {
-    const rows = await sbFetch('scores', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name, mode: lastRun.mode, time_sec: lastRun.time, pulls: lastRun.pulls, deaths: lastRun.deaths, peak: lastRun.peak }) });
-    lastRun.sent = true;
-    $('submitMsg').textContent = 'Your time is on the board.';
-    loadBoard($('boardScore'), lastRun.mode, rows && rows[0] && rows[0].id);
-  } catch (err) {
-    $('submitBtn').disabled = false;
-    $('submitMsg').textContent = /time_sec/.test(err.message) ? 'That run was too short to count.' : "Couldn't send your time. Check your connection and try again.";
+  const err = $('acctErr'), email = $('acctEmail').value.trim(), pass = $('acctPass').value, user = $('acctUser').value.trim();
+  err.classList.remove('ok');
+  if (!email || !pass) { err.textContent = 'Enter your email and password.'; return; }
+  if (acctTab === 'up') {
+    if (!/^[A-Za-z0-9_.-]{3,16}$/.test(user)) { err.textContent = 'Usernames are 3 to 16 letters, numbers, dots, dashes or underscores.'; return; }
+    if (pass.length < 6) { err.textContent = 'Use a password of at least 6 characters.'; return; }
   }
+  $('acctSubmit').disabled = true; err.textContent = acctTab === 'up' ? 'Creating your account…' : 'Signing in…';
+  try {
+    if (acctTab === 'up') {
+      const taken = await supa.from('profiles').select('id').eq('username', user).maybeSingle();
+      if (taken.data) { err.textContent = 'That username is taken. Try another.'; return; }
+      const { data, error } = await supa.auth.signUp({ email, password: pass, options: { data: { username: user } } });
+      if (error) { err.textContent = error.message; return; }
+      if (!data.session) { setAcctTab('in'); err.textContent = 'Check your email for a confirmation link, then sign in here.'; err.classList.add('ok'); return; }
+    } else {
+      const { error } = await supa.auth.signInWithPassword({ email, password: pass });
+      if (error) { err.textContent = error.message === 'Invalid login credentials' ? 'That email and password don\'t match an account.' : error.message; return; }
+    }
+    const { data: { user: u } } = await supa.auth.getUser();
+    await loadMe(u);
+    $('acctPass').value = '';
+    closeAccount();
+  } finally { $('acctSubmit').disabled = false; }
 });
+// saving an escape
+let lastRun = null;
+function updateSubmit() {
+  if (!supa || !lastRun) return;
+  const msg = $('submitMsg'), btn = $('submitBtn');
+  $('submitBox').hidden = false;
+  if (lastRun.sent) { msg.textContent = 'Saved to the leaderboard.'; btn.hidden = true; return; }
+  if (!me) { msg.textContent = 'Sign in to put this time on the leaderboard.'; btn.hidden = false; btn.lastChild.textContent = 'Sign in to save'; return; }
+  saveRun();
+}
+async function saveRun() {
+  const msg = $('submitMsg'), btn = $('submitBtn');
+  btn.hidden = true; msg.textContent = `Saving as ${me.username}…`;
+  const { error } = await supa.from('scores').insert({ mode: lastRun.mode, time_sec: lastRun.time, pulls: lastRun.pulls, deaths: lastRun.deaths, peak: lastRun.peak });
+  if (error) {
+    msg.textContent = /time_sec/.test(error.message) ? 'That run was too short to count.' : "Couldn't save your time. Check your connection and try again.";
+    btn.hidden = /time_sec/.test(error.message); btn.lastChild.textContent = 'Try again';
+    return;
+  }
+  lastRun.sent = true; msg.textContent = `Saved to the leaderboard as ${me.username}.`;
+  loadBoard($('boardScore'), lastRun.mode);
+}
+$('submitBtn').addEventListener('click', () => { if (!me) openAccount(); else saveRun(); });
+$('titleTabs').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  titleMode = b.dataset.mode;
+  for (const x of $('titleTabs').children) x.classList.toggle('on', x === b);
+  loadBoard($('boardTitle'), titleMode);
+});
+if (boardOn) {
+  import('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm').then(async ({ createClient }) => {
+    supa = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    $('titleBoard').hidden = false;
+    const { data: { session } } = await supa.auth.getSession();
+    await loadMe(session && session.user);
+    refreshTitle();
+  }).catch(() => {});
+}
 
 /* ================= house data ================= */
 const ROOM_DEFS = [
@@ -1295,7 +1413,7 @@ $('startBtn').addEventListener('click', () => newRun('normal'));
 $('hardBtn').addEventListener('click', () => newRun('one'));
 $('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal'));
 $('overAgain').addEventListener('click', () => newRun('one'));
-$('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; });
+$('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; refreshTitle(); });
 
 function enterRoom(id, from, slam) {
   if (id === 'living' && from !== null) { if (resetLayout()) say('The house settles. Everything is back where it was.', 3); }
@@ -1851,11 +1969,10 @@ function showScore() {
   try { localStorage.setItem(bestKey, JSON.stringify(best)); } catch (e) {}
   const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
   $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
-  if (boardOn) {
+  if (supa) {
     lastRun = { mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
-    let saved = ''; try { saved = localStorage.getItem('lasthit.name') || ''; } catch (e) {}
-    $('playerName').value = saved; $('submitBtn').disabled = false; $('submitMsg').textContent = '';
-    $('submitForm').hidden = false; $('boardScore').hidden = false; loadBoard($('boardScore'), G.mode);
+    $('boardScore').hidden = false; loadBoard($('boardScore'), G.mode);
+    updateSubmit();
   }
   $('score').hidden = false; msgEl.classList.remove('show');
 }

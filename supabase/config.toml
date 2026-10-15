@@ -1,0 +1,2 @@
+# Read by the Supabase CLI and the GitHub integration; migrations live in ./migrations.
+project_id = "last-hit"
