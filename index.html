@@ -134,6 +134,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <dl class="controls" id="controlsDesk">
       <dt>Mouse</dt><dd>Look around</dd>
       <dt>WASD</dt><dd>Move. Walk into a door to open it.</dd>
+      <dt>F</dt><dd>Auto-walk on or off. Lets a laptop touchpad keep working while you move.</dd>
       <dt>Q / E or ← →</dt><dd>Turn without the mouse</dd>
       <dt>Shift</dt><dd>Run. It hears you running.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
@@ -939,7 +940,7 @@ const sfx = {
 };
 
 /* ================= input ================= */
-const input = { fwd: 0, back: 0, left: 0, right: 0, turnL: 0, turnR: 0, run: false, penKey: false, penMouse: false, penTouch: false, brKey: false, brMouse: false, brTouch: false, tx: 0, ty: 0 };
+const input = { fwd: 0, back: 0, left: 0, right: 0, turnL: 0, turnR: 0, run: false, penKey: false, penMouse: false, penTouch: false, brKey: false, brMouse: false, brTouch: false, tx: 0, ty: 0, auto: false };
 const penHeld = () => input.penKey || input.penMouse || input.penTouch;
 const breathHeld = () => input.brKey || input.brMouse || input.brTouch;
 const releaseCheck = () => { if (!penHeld() && L) L.coughLock = false; };
@@ -953,6 +954,8 @@ addEventListener('keydown', e => {
   if (keyMap[k]) input[keyMap[k]] = 1;
   if (k === 'shift') input.run = true;
   if (k === 'c') input.brKey = true;
+  if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
+  if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
   if (k === ' ' && state === 'playing') input.penKey = true;
   if (k === 'p' && state === 'playing') pause();
   if (k === 'enter' && ready && (state === 'title' || state === 'score')) newRun();
@@ -964,7 +967,7 @@ addEventListener('keyup', e => {
   if (k === 'c') input.brKey = false;
   if (k === ' ') { input.penKey = false; releaseCheck(); }
 });
-const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = false; };
+const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
 addEventListener('blur', clearInput);
 cvs.addEventListener('contextmenu', e => e.preventDefault());
 cvs.addEventListener('mousedown', e => {
@@ -1136,6 +1139,7 @@ function useDoor(dr) {
   if (cur.node.enteredHigh && dr.to === cur.node.entryFrom) to = shuffleFrom(cur.id, dr.to);
   sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z });
   if (dr.stairs) for (let i = 0; i < 4; i++) sfx.myStep(.12);
+  input.auto = false;
   state = 'trans'; L.trans = { t: 0, to, from: cur.id, slam: input.run && !L.holding, built: false };
 }
 function exhale(coughed) {
@@ -1174,7 +1178,7 @@ function update(dt) {
   L.breathLock -= dt;
 
   // movement
-  let f = (input.fwd - input.back) - input.ty, s = (input.right - input.left) + input.tx;
+  let f = Math.min(1, (input.fwd - input.back) - input.ty + (input.auto ? 1 : 0)), s = (input.right - input.left) + input.tx;
   let turn = (input.turnR - input.turnL) * 2.2 * dt;
   if (L.invertT > 0) { L.invertT -= dt; f = -f; s = -s; turn = -turn; }
   else if (L.high > 82 && Math.random() < dt * .1) { L.invertT = 1.6; say('Your legs stop listening.', 1.8); }
