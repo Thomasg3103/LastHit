@@ -679,16 +679,18 @@ function updateSubmit() {
   const msg = $('submitMsg'), btn = $('submitBtn');
   $('submitBox').hidden = false;
   if (lastRun.sent) { msg.textContent = 'Saved to the leaderboard.'; btn.hidden = true; return; }
-  if (!me) { msg.textContent = 'Sign in to put this time on the leaderboard.'; btn.hidden = false; btn.lastChild.textContent = 'Sign in to save'; return; }
+  if (!me) { msg.textContent = 'Sign in before your next run to put your times on the leaderboard.'; btn.hidden = false; btn.lastChild.textContent = 'Sign in'; return; }
+  if (!lastRun.runId) { msg.textContent = "This run started before you signed in, so it can't go on the leaderboard. Your next one will."; btn.hidden = true; return; }
   saveRun();
 }
 async function saveRun() {
   const msg = $('submitMsg'), btn = $('submitBtn');
   btn.hidden = true; msg.textContent = `Saving as ${me.username}…`;
-  const { error } = await supa.from('scores').insert({ mode: lastRun.mode, time_sec: lastRun.time, pulls: lastRun.pulls, deaths: lastRun.deaths, peak: lastRun.peak });
+  const { error } = await supa.rpc('submit_score', { p_run: lastRun.runId, p_pulls: lastRun.pulls, p_deaths: lastRun.deaths, p_peak: lastRun.peak });
   if (error) {
-    msg.textContent = /time_sec/.test(error.message) ? 'That run was too short to count.' : "Couldn't save your time. Check your connection and try again.";
-    btn.hidden = /time_sec/.test(error.message); btn.lastChild.textContent = 'Try again';
+    const final = /already submitted|run not found|time_sec|one_life/.test(error.message);
+    msg.textContent = /already submitted/.test(error.message) ? 'This run is already on the leaderboard.' : final ? "This run can't go on the leaderboard." : "Couldn't save your time. Check your connection and try again.";
+    btn.hidden = final; btn.lastChild.textContent = 'Try again';
     return;
   }
   lastRun.sent = true; msg.textContent = `Saved to the leaderboard as ${me.username}.`;
@@ -1392,7 +1394,8 @@ function newRun(mode = 'normal') {
   initAudio();
   if (AC) { A.master.gain.cancelScheduledValues(AC.currentTime); A.master.gain.setValueAtTime(.9, AC.currentTime); A.droneGain.gain.value = .045; A.windGain.gain.value = .025; }
   initHouse();
-  G = { mode, items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
+  G = { mode, runId: null, items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
+  if (supa && me) { const g = G; supa.rpc('start_run', { p_mode: mode }).then(({ data, error }) => { if (!error) g.runId = data; }); }
   $('title').hidden = true; $('score').hidden = true; $('over').hidden = true; $('pause').hidden = true;
   $('modeTag').hidden = mode !== 'one';
   scene.fog = null; scene.background.setHex(0x000000);
@@ -1985,7 +1988,7 @@ function showScore() {
   const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
   $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
   if (supa) {
-    lastRun = { mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
+    lastRun = { runId: G.runId, mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
     $('boardScore').hidden = false; loadBoard($('boardScore'), G.mode);
     updateSubmit();
   }
