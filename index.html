@@ -176,6 +176,10 @@ if (isTouch) { document.body.classList.add('touch'); $('controlsDesk').hidden = 
 const cvs = $('game');
 const renderer = new THREE.WebGLRenderer({ canvas: cvs, antialias: false, powerPreference: 'high-performance' });
 renderer.setPixelRatio(1);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.35;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x000000);
 scene.fog = new THREE.Fog(0x000000, 0.2, 1);
@@ -184,6 +188,11 @@ camera.rotation.order = 'YXZ';
 scene.add(camera);
 const lamp = new THREE.PointLight(0xffe2c4, 0, 10, 2);
 lamp.position.set(0, 0.25, -0.5);
+lamp.castShadow = true;
+lamp.shadow.mapSize.set(512, 512);
+lamp.shadow.bias = -0.004;
+lamp.shadow.radius = 3;
+lamp.shadow.camera.near = 0.1;
 camera.add(lamp);
 
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
@@ -227,7 +236,8 @@ void main(){
   col = mix(col, vec3(0.2, 0.6, 0.18), uGo * 0.55);
   col *= 1.0 - clamp((uGo - 0.7) / 0.3, 0.0, 1.0);
   if (uScare > 0.0 && rand(vec2(uTime, 1.0)) > 0.7) col = mix(col, vec3(0.6, 0.02, 0.05), 0.4);
-  gl_FragColor = vec4(col, 1.0);
+  col *= 1.0 + (rand(vUv * uRes + uTime * 13.0) - 0.5) * 0.14;
+  gl_FragColor = vec4(max(col, vec3(0.0)), 1.0);
 }`;
 const postMat = new THREE.ShaderMaterial({
   uniforms: { tScene: { value: null }, tPrev: { value: null }, uTime: { value: 0 }, uHigh: { value: 0 }, uGo: { value: 0 }, uTrail: { value: 0 }, uStatic: { value: 0 }, uRed: { value: 0 }, uScare: { value: 0 }, uRes: { value: new THREE.Vector2(2, 2) } },
@@ -238,18 +248,19 @@ const copyMat = new THREE.ShaderMaterial({
   fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
 void main(){
   gl_FragColor = texture2D(tDiffuse, vUv);
+  #include <tonemapping_fragment>
   #include <colorspace_fragment>
 }`
 });
 const orthoCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 function quadScene(mat) { const s = new THREE.Scene(), m = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), mat); m.frustumCulled = false; s.add(m); return s; }
 const postScene = quadScene(postMat), copyScene = quadScene(copyMat);
-const RT_OPTS = { minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, type: THREE.HalfFloatType };
+const RT_OPTS = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, type: THREE.HalfFloatType };
 let rtScene, rtA, rtB;
 function resize() {
   const w = innerWidth, h = innerHeight;
   renderer.setSize(w, h, false);
-  const s = Math.min(1, 540 / h), rw = Math.max(2, Math.round(w * s)), rh = Math.max(2, Math.round(h * s));
+  const s = Math.min(1, 720 / h), rw = Math.max(2, Math.round(w * s)), rh = Math.max(2, Math.round(h * s));
   for (const r of [rtScene, rtA, rtB]) if (r) r.dispose();
   rtScene = new THREE.WebGLRenderTarget(rw, rh, RT_OPTS); rtA = new THREE.WebGLRenderTarget(rw, rh, RT_OPTS); rtB = new THREE.WebGLRenderTarget(rw, rh, RT_OPTS);
   postMat.uniforms.uRes.value.set(rw, rh);
@@ -269,22 +280,70 @@ function canvasTex(size, draw, srgb = true, h = size) {
 function speckle(g, w, h, n, a) {
   for (let i = 0; i < n; i++) { g.fillStyle = Math.random() < .5 ? `rgba(255,250,235,${a})` : `rgba(0,0,0,${a * 3})`; g.fillRect(Math.random() * w, Math.random() * h, 1 + Math.random() * 2, 1 + Math.random() * 2); }
 }
-const wallTex = canvasTex(128, (g, s) => {
-  g.fillStyle = '#2e2a24'; g.fillRect(0, 0, s, s);
-  for (let r = 0; r < 4; r++) { const off = (r % 2) * 32; for (let c = -1; c < 3; c++) { g.fillStyle = `hsl(34,${5 + Math.random() * 5}%,${30 + Math.random() * 7}%)`; g.fillRect(c * 64 + off + 2, r * 32 + 2, 60, 28); } }
-  speckle(g, s, s, 900, .05);
-  for (let i = 0; i < 6; i++) { const gr = g.createLinearGradient(0, 0, 0, s); gr.addColorStop(0, 'rgba(20,16,10,.55)'); gr.addColorStop(1, 'rgba(20,16,10,0)'); g.fillStyle = gr; g.fillRect(Math.random() * s, 0, 3 + Math.random() * 10, s * rnd(.4, 1)); }
-  const gb = g.createLinearGradient(0, s * .55, 0, s); gb.addColorStop(0, 'rgba(10,14,8,0)'); gb.addColorStop(1, 'rgba(10,14,8,.65)'); g.fillStyle = gb; g.fillRect(0, 0, s, s);
+// Color + bump pairs share one layout: draw(colorCtx, bumpCtx, size)
+function texPair(size, draw) {
+  const a = document.createElement('canvas'), b = document.createElement('canvas');
+  a.width = a.height = b.width = b.height = size;
+  draw(a.getContext('2d'), b.getContext('2d'), size);
+  const col = new THREE.CanvasTexture(a), bump = new THREE.CanvasTexture(b);
+  col.colorSpace = THREE.SRGBColorSpace;
+  for (const t of [col, bump]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.anisotropy = 8; }
+  return [col, bump];
+}
+function pits(g, b, x0, y0, w, h, n) {
+  for (let i = 0; i < n; i++) {
+    const x = x0 + Math.random() * w, y = y0 + Math.random() * h, r = rnd(.6, 2.2);
+    g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(x, y, r, 0, TAU); g.fill();
+    b.fillStyle = '#3a3a3a'; b.beginPath(); b.arc(x, y, r, 0, TAU); b.fill();
+  }
+}
+const [wallTex, wallBump] = texPair(256, (g, b, s) => {
+  g.fillStyle = '#26221d'; g.fillRect(0, 0, s, s);
+  b.fillStyle = '#202020'; b.fillRect(0, 0, s, s);
+  const bh = 64, bw = 128;
+  for (let r = 0; r < 4; r++) {
+    const off = (r % 2) * bw / 2;
+    for (let c = -1; c < 3; c++) {
+      const x = c * bw + off + 3, y = r * bh + 3, w = bw - 6, h = bh - 6, l = 30 + Math.random() * 8;
+      const gr = g.createLinearGradient(0, y, 0, y + h);
+      gr.addColorStop(0, `hsl(34,${5 + Math.random() * 5}%,${l + 4}%)`); gr.addColorStop(1, `hsl(34,6%,${l - 5}%)`);
+      g.fillStyle = gr; g.fillRect(x, y, w, h);
+      b.fillStyle = `rgb(${200 + Math.random() * 30 | 0},${200},${200})`; b.fillRect(x, y, w, h);
+      g.fillStyle = 'rgba(255,245,225,.08)'; g.fillRect(x, y, w, 2);
+      pits(g, b, x, y, w, h, 22);
+      if (Math.random() < .25) { const cx = x + Math.random() * w, cy = y + Math.random() * h; g.fillStyle = 'rgba(0,0,0,.4)'; b.fillStyle = '#555'; for (const t of [g, b]) { t.beginPath(); t.moveTo(cx, cy); t.lineTo(cx + rnd(-14, 14), cy + rnd(6, 14)); t.lineTo(cx + rnd(-14, 14), cy + rnd(-4, 4)); t.fill(); } }
+    }
+  }
+  speckle(g, s, s, 2600, .045);
+  for (let i = 0; i < 9; i++) { const gr = g.createLinearGradient(0, 0, 0, s); gr.addColorStop(0, 'rgba(22,16,8,.6)'); gr.addColorStop(1, 'rgba(22,16,8,0)'); g.fillStyle = gr; g.fillRect(Math.random() * s, 0, rnd(4, 18), s * rnd(.3, 1)); }
+  const gb = g.createLinearGradient(0, s * .55, 0, s); gb.addColorStop(0, 'rgba(10,16,8,0)'); gb.addColorStop(1, 'rgba(12,20,8,.7)'); g.fillStyle = gb; g.fillRect(0, 0, s, s);
 });
-const floorTex = canvasTex(128, (g, s) => {
+const [floorTex, floorBump] = texPair(256, (g, b, s) => {
   g.fillStyle = '#4a453d'; g.fillRect(0, 0, s, s);
-  speckle(g, s, s, 1400, .05);
-  for (let i = 0; i < 5; i++) { g.fillStyle = `rgba(0,0,0,${rnd(.05, .15)})`; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, rnd(10, 30), 0, TAU); g.fill(); }
-  g.strokeStyle = 'rgba(0,0,0,.45)'; g.lineWidth = 1;
-  for (let i = 0; i < 3; i++) { g.beginPath(); let x = Math.random() * s, y = Math.random() * s; g.moveTo(x, y); for (let k = 0; k < 6; k++) { x += rnd(-14, 14); y += rnd(-14, 14); g.lineTo(x, y); } g.stroke(); }
-  g.fillStyle = 'rgba(0,0,0,.35)'; g.fillRect(0, 0, s, 1); g.fillRect(0, 0, 1, s);
+  b.fillStyle = '#b4b4b4'; b.fillRect(0, 0, s, s);
+  for (let i = 0; i < 9; i++) { g.fillStyle = `rgba(${Math.random() < .5 ? '0,0,0' : '90,80,60'},${rnd(.04, .12)})`; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, rnd(14, 60), 0, TAU); g.fill(); }
+  for (let i = 0; i < 2600; i++) { const x = Math.random() * s, y = Math.random() * s, r = Math.random() * 1.6; const lit = Math.random() < .5; g.fillStyle = lit ? 'rgba(220,210,190,.08)' : 'rgba(0,0,0,.18)'; g.fillRect(x, y, r + .6, r + .6); b.fillStyle = lit ? '#d0d0d0' : '#909090'; b.fillRect(x, y, r + .6, r + .6); }
+  pits(g, b, 0, 0, s, s, 30);
+  g.lineWidth = b.lineWidth = 1.4; g.strokeStyle = 'rgba(0,0,0,.55)'; b.strokeStyle = '#303030';
+  for (let i = 0; i < 4; i++) { let x = Math.random() * s, y = Math.random() * s; const pts = [[x, y]]; for (let k = 0; k < 8; k++) { x += rnd(-18, 18); y += rnd(-18, 18); pts.push([x, y]); } for (const t of [g, b]) { t.beginPath(); t.moveTo(...pts[0]); pts.forEach(p => t.lineTo(...p)); t.stroke(); } }
+  if (Math.random() < 1) { g.fillStyle = 'rgba(8,6,4,.35)'; g.beginPath(); g.ellipse(s * rnd(.2, .8), s * rnd(.2, .8), rnd(20, 40), rnd(12, 24), Math.random() * 3, 0, TAU); g.fill(); }
+  g.fillStyle = 'rgba(0,0,0,.5)'; g.fillRect(0, 0, s, 2); g.fillRect(0, 0, 2, s);
+  b.fillStyle = '#202020'; b.fillRect(0, 0, s, 2); b.fillRect(0, 0, 2, s);
 });
-floorTex.repeat.set(GW, GH);
+floorTex.repeat.set(GW, GH); floorBump.repeat.set(GW, GH);
+const cardTex = canvasTex(128, (g, s) => {
+  g.fillStyle = '#7a5c38'; g.fillRect(0, 0, s, s); speckle(g, s, s, 500, .05);
+  g.fillStyle = 'rgba(0,0,0,.25)'; g.fillRect(0, s / 2 - 1, s, 2);
+  g.fillStyle = 'rgba(200,190,160,.5)'; g.fillRect(s / 2 - 10, 0, 20, s);
+  g.fillStyle = 'rgba(40,20,10,.55)'; g.font = "18px 'Special Elite', monospace"; g.fillText(Math.random() < .5 ? 'XMAS' : 'TAXES 09', 12, s - 16);
+  const gr = g.createLinearGradient(0, s * .6, 0, s); gr.addColorStop(0, 'rgba(30,20,10,0)'); gr.addColorStop(1, 'rgba(30,20,10,.5)'); g.fillStyle = gr; g.fillRect(0, 0, s, s);
+});
+const rustTex = canvasTex(128, (g, s) => {
+  g.fillStyle = '#4b3a2c'; g.fillRect(0, 0, s, s);
+  for (let i = 0; i < 40; i++) { g.fillStyle = `rgba(${120 + Math.random() * 60 | 0},${50 + Math.random() * 30 | 0},20,${rnd(.2, .5)})`; g.beginPath(); g.arc(Math.random() * s, Math.random() * s, rnd(2, 14), 0, TAU); g.fill(); }
+  speckle(g, s, s, 600, .06);
+  g.fillStyle = 'rgba(0,0,0,.35)'; for (const y of [s * .2, s * .8]) g.fillRect(0, y, s, 4);
+});
 const ceilTex = canvasTex(128, (g, s) => {
   g.fillStyle = '#25221e'; g.fillRect(0, 0, s, s); speckle(g, s, s, 700, .04);
   g.fillStyle = 'rgba(0,0,0,.4)'; g.fillRect(0, 60, s, 8); g.fillStyle = 'rgba(255,255,255,.04)'; g.fillRect(0, 60, s, 2);
@@ -312,8 +371,13 @@ function wordTex(word) {
 }
 
 /* ---------- shared materials ---------- */
-const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, roughness: .95 });
-const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, roughness: .9 });
+const wallMat = new THREE.MeshStandardMaterial({ map: wallTex, bumpMap: wallBump, bumpScale: 2.2, roughness: .95 });
+const floorMat = new THREE.MeshStandardMaterial({ map: floorTex, bumpMap: floorBump, bumpScale: 1.6, roughness: .82 });
+const cardMat = new THREE.MeshStandardMaterial({ map: cardTex, roughness: .95 });
+const rustMat = new THREE.MeshStandardMaterial({ map: rustTex, roughness: .7, metalness: .45 });
+const pipeMat = new THREE.MeshStandardMaterial({ color: 0x4a4038, roughness: .55, metalness: .7 });
+const bulbMat = new THREE.MeshStandardMaterial({ color: 0xcfc8b0, roughness: .1, transparent: true, opacity: .55 });
+const cordMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: .8 });
 const ceilMat = new THREE.MeshStandardMaterial({ map: ceilTex, roughness: 1 });
 const decalMat = new THREE.MeshStandardMaterial({ map: bloodTex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, roughness: .5 });
 const goldMat = new THREE.MeshStandardMaterial({ color: 0xd9b54a, metalness: .7, roughness: .35, emissive: 0x1a1000 });
@@ -321,7 +385,7 @@ const cartGlass = new THREE.MeshStandardMaterial({ color: 0xc8d2c0, transparent:
 const cartOil = new THREE.MeshStandardMaterial({ color: 0x8a6420, roughness: .3, emissive: 0x0a0600 });
 const cartBase = new THREE.MeshStandardMaterial({ color: 0x555555, metalness: .8, roughness: .4 });
 const plankMat = new THREE.MeshStandardMaterial({ map: plankTex, roughness: .9 });
-const figMat = new THREE.MeshStandardMaterial({ color: 0x050505, roughness: 1 });
+const figMat = new THREE.MeshLambertMaterial({ color: 0x060606 });
 const mouthMat = new THREE.MeshBasicMaterial({ color: 0x1a0003 });
 const toothMat = new THREE.MeshStandardMaterial({ color: 0xd8d2bf, roughness: .6 });
 
@@ -387,6 +451,7 @@ function makeFigure() {
     const gl = new THREE.Sprite(glowMat); gl.scale.set(.16, .16, 1); gl.position.copy(e.position); eyes.add(gl);
   }
   g.userData = { body, head, mouth, eyes, eyeMat, glowMat, arms, headPivot, seed: Math.random() * 10 };
+  g.traverse(o => { if (o.isMesh && o.material === figMat) o.castShadow = true; });
   return g;
 }
 function setFigure(f, { show = true, body = true, eyes = true, red = false, glow = false, mouth = 1 }) {
@@ -432,6 +497,12 @@ const smokePool = Array.from({ length: 70 }, () => {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9da298, transparent: true, depthWrite: false, opacity: 0 }));
   s.visible = false; scene.add(s); return { s, life: 1, max: 1, vx: 0, vy: 0, vz: 0, r: 0 };
 });
+const DUST_N = 360, DUST_R = 6;
+const dustPos = new Float32Array(DUST_N * 3);
+for (let i = 0; i < DUST_N; i++) { dustPos[i * 3] = rnd(-DUST_R, DUST_R); dustPos[i * 3 + 1] = rnd(0, WALL_H); dustPos[i * 3 + 2] = rnd(-DUST_R, DUST_R); }
+const dustGeo = new THREE.BufferGeometry(); dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+const dustMat = new THREE.PointsMaterial({ map: dotTex, color: 0xd8cfbe, size: .03, transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+const dust = new THREE.Points(dustGeo, dustMat); dust.frustumCulled = false; scene.add(dust);
 // pen viewmodel
 const pen = new THREE.Group(); camera.add(pen);
 const penBody = new THREE.Mesh(new THREE.CylinderGeometry(.011, .011, .15, 10), new THREE.MeshStandardMaterial({ color: 0x2d312d, metalness: .6, roughness: .45 }));
@@ -446,7 +517,56 @@ const ledLight = new THREE.PointLight(0xffae4a, 0, 2.6, 2); ledLight.position.y 
 const PEN_REST = new THREE.Vector3(.15, -.16, -.3), PEN_HIT = new THREE.Vector3(.035, -.075, -.19);
 let penLift = 0;
 
-let level = null, keyObjs = [], cartObjs = [], exitObj = null;
+let level = null, keyObjs = [], cartObjs = [], exitObj = null, PROPS = [], BULBS = [];
+function buildProps() {
+  PROPS = []; BULBS = [];
+  const mk = (geo, mat, x, y, z) => { const o = new THREE.Mesh(geo, mat); o.position.set(x, y, z); o.castShadow = o.receiveShadow = true; level.add(o); return o; };
+  const reserved = new Set([cellI(P.x, P.z), cellI(G.exit.x, G.exit.z), ...G.keyList.map(k => cellI(k.x, k.z)), ...G.carts.map(c => cellI(c.x, c.z))]);
+  for (const i of FLOORS) {
+    if (reserved.has(i)) continue;
+    const x = i % GW, y = (i / GW) | 0, open = DIRS.filter(([dx, dy]) => !isWall(x + dx, y + dy));
+    if (open.length === 1 && Math.random() < .75) {
+      // boxes stacked against the back wall of a dead end
+      const [dx, dy] = open[0], side = rnd(-.35, .35);
+      const bx = ix2x(i) - dx * .68 - dy * side, bz = ix2z(i) - dy * .68 - dx * side;
+      let h = 0;
+      for (let k = 0, n = 1 + (Math.random() * 3 | 0); k < n; k++) {
+        const s = rnd(.42, .6) * (1 - k * .15), bh = s * .75;
+        const b = mk(new THREE.BoxGeometry(s, bh, s), cardMat, bx + rnd(-.05, .05), h + bh / 2, bz + rnd(-.05, .05));
+        b.rotation.y = rnd(-.4, .4); h += bh;
+      }
+      PROPS.push({ x: bx, z: bz, r: .3 });
+    } else if (open.length >= 3 && Math.random() < .3) {
+      const cx = ix2x(i) + (Math.random() < .5 ? -.66 : .66), cz = ix2z(i) + (Math.random() < .5 ? -.66 : .66);
+      if (Math.random() < .2) { const b = mk(new THREE.CylinderGeometry(.27, .27, .82, 14), rustMat, cx, .27, cz); b.rotation.set(Math.PI / 2, 0, Math.random() * TAU); b.position.y = .27; }
+      else mk(new THREE.CylinderGeometry(.27, .25, .85, 14), rustMat, cx, .425, cz);
+      PROPS.push({ x: cx, z: cz, r: .3 });
+    }
+  }
+  // pipes along the ceiling, following straight runs of corridor
+  const pipe = (len, x, z, alongX) => { const p = mk(new THREE.CylinderGeometry(.055, .055, len, 8), pipeMat, x, WALL_H - .17, z); p.receiveShadow = false; if (alongX) p.rotation.z = Math.PI / 2; else p.rotation.x = Math.PI / 2; };
+  for (let y = 1; y < GH - 1; y++) for (let x = 0; x < GW;) {
+    if (isWall(x, y)) { x++; continue; }
+    let x2 = x; while (!isWall(x2 + 1, y)) x2++;
+    if (x2 - x >= 2 && isWall(x, y + 1) && Math.random() < .5) pipe((x2 - x + 1) * T, (x + x2 + 1) / 2 * T, (y + .5) * T + .7, true);
+    x = x2 + 1;
+  }
+  for (let x = 1; x < GW - 1; x++) for (let y = 0; y < GH;) {
+    if (isWall(x, y)) { y++; continue; }
+    let y2 = y; while (!isWall(x, y2 + 1)) y2++;
+    if (y2 - y >= 2 && isWall(x - 1, y) && Math.random() < .5) pipe((y2 - y + 1) * T, (x + .5) * T - .7, (y + y2 + 1) / 2 * T, false);
+    y = y2 + 1;
+  }
+  // dead bulbs on cords
+  for (let k = 0; k < 14; k++) {
+    const i = FLOORS[Math.random() * FLOORS.length | 0], piv = new THREE.Group();
+    piv.position.set(ix2x(i) + rnd(-.3, .3), WALL_H, ix2z(i) + rnd(-.3, .3));
+    const len = rnd(.35, .7);
+    const cord = new THREE.Mesh(new THREE.CylinderGeometry(.005, .005, len, 4), cordMat); cord.position.y = -len / 2; piv.add(cord);
+    const bulb = new THREE.Mesh(new THREE.SphereGeometry(.055, 12, 10), bulbMat); bulb.scale.y = 1.3; bulb.position.y = -len - .05; bulb.castShadow = true; piv.add(bulb);
+    level.add(piv); BULBS.push({ piv, ph: Math.random() * TAU });
+  }
+}
 function buildLevel() {
   if (level) { scene.remove(level); level.traverse(o => { if (o.geometry) o.geometry.dispose(); if (o.userData.own) { o.material.map && o.material.map.dispose(); o.material.dispose(); } }); }
   level = new THREE.Group(); scene.add(level);
@@ -456,7 +576,10 @@ function buildLevel() {
   for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) if (grid[y][x] && DIRS.some(([dx, dy]) => !isWall(x + dx, y + dy))) walls.push([x, y]);
   const im = new THREE.InstancedMesh(new THREE.BoxGeometry(T, WALL_H, T), wallMat, walls.length), m = new THREE.Matrix4();
   walls.forEach(([x, y], i) => { m.makeTranslation((x + .5) * T, WALL_H / 2, (y + .5) * T); im.setMatrixAt(i, m); });
+  im.castShadow = im.receiveShadow = true;
+  floor.receiveShadow = ceil.receiveShadow = true;
   level.add(im);
+  buildProps();
   for (let i = 0; i < 24; i++) {
     const c = FLOORS[Math.random() * FLOORS.length | 0], d = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), decalMat);
     d.rotation.set(-Math.PI / 2, 0, Math.random() * TAU); const s = rnd(.6, 1.7); d.scale.set(s, s, 1);
@@ -692,6 +815,7 @@ function randomGoal() { setGoal(FLOORS[Math.random() * FLOORS.length | 0]); }
 function blocked(x, z, r) {
   const x0 = Math.floor((x - r) / T), x1 = Math.floor((x + r) / T), z0 = Math.floor((z - r) / T), z1 = Math.floor((z + r) / T);
   for (let tz = z0; tz <= z1; tz++) for (let tx = x0; tx <= x1; tx++) if (isWall(tx, tz)) return true;
+  for (const p of PROPS) if (Math.hypot(x - p.x, z - p.z) < r + p.r) return true;
   return false;
 }
 function tryMove(o, dx, dz, r) { if (!blocked(o.x + dx, o.z, r)) o.x += dx; if (!blocked(o.x, o.z + dz, r)) o.z += dz; }
@@ -959,6 +1083,17 @@ function render(dt) {
     }
     s.s.scale.set(s.r, s.r, 1); s.s.material.opacity = (1 - s.life / s.max) * .32;
   }
+
+  for (let i = 0; i < DUST_N; i++) {
+    const k = i * 3;
+    dustPos[k] += Math.sin(t * .3 + i) * .04 * dt; dustPos[k + 1] += (Math.sin(t * .2 + i * 1.7) * .03 - .01) * dt; dustPos[k + 2] += Math.cos(t * .25 + i) * .04 * dt;
+    if (dustPos[k] - P.x > DUST_R) dustPos[k] -= DUST_R * 2; else if (P.x - dustPos[k] > DUST_R) dustPos[k] += DUST_R * 2;
+    if (dustPos[k + 2] - P.z > DUST_R) dustPos[k + 2] -= DUST_R * 2; else if (P.z - dustPos[k + 2] > DUST_R) dustPos[k + 2] += DUST_R * 2;
+    if (dustPos[k + 1] < 0) dustPos[k + 1] += WALL_H;
+  }
+  dustGeo.attributes.position.needsUpdate = true;
+  dustMat.opacity = clamp(lampR / 5, 0, 1) * .5;
+  for (const b of BULBS) { b.piv.rotation.z = Math.sin(t * .8 + b.ph) * .05; b.piv.rotation.x = Math.cos(t * .6 + b.ph) * .04; }
 
   // post
   const u = postMat.uniforms;
