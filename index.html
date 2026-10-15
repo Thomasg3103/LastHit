@@ -245,8 +245,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <h2 id="acctHead">Sign in</h2>
       <div class="tabs" id="acctTabs" style="margin-block:16px"><button type="button" data-tab="in" class="on">Sign in</button><button type="button" data-tab="up">Create account</button></div>
       <form class="form" id="acctForm" novalidate>
-        <label id="userRow" hidden>Username<input id="acctUser" maxlength="16" autocomplete="username" placeholder="3 to 16 letters, numbers, . _ -"></label>
-        <label>Email<input id="acctEmail" type="email" autocomplete="email"></label>
+        <label id="userRow">Username<input id="acctUser" maxlength="16" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="3 to 16 letters, numbers, _ or -"></label>
         <label>Password<input id="acctPass" type="password" minlength="6" autocomplete="current-password"></label>
         <p class="err" id="acctErr" role="alert"></p>
         <div class="modes"><button class="pen-btn" id="acctSubmit" type="submit"><span class="led"></span>Sign in</button><button class="pen-btn hard" id="acctBack" type="button"><span class="led"></span>Play as guest</button></div>
@@ -618,7 +617,7 @@ let acctTab = 'in', acctReturn = 'title';
 function setAcctTab(tab) {
   acctTab = tab;
   for (const b of $('acctTabs').children) b.classList.toggle('on', b.dataset.tab === tab);
-  $('userRow').hidden = tab !== 'up'; $('acctHead').textContent = tab === 'up' ? 'Create account' : 'Sign in';
+  $('acctHead').textContent = tab === 'up' ? 'Create account' : 'Sign in';
   $('acctSubmit').lastChild.textContent = tab === 'up' ? 'Create account' : 'Sign in';
   $('acctPass').autocomplete = tab === 'up' ? 'new-password' : 'current-password';
   $('acctErr').textContent = ''; $('acctErr').classList.remove('ok');
@@ -644,26 +643,28 @@ $('acctTabs').addEventListener('click', e => { const b = e.target.closest('butto
 $('acctBack').addEventListener('click', closeAccount);
 $('profBack').addEventListener('click', closeAccount);
 $('signOut').addEventListener('click', async () => { await supa.auth.signOut(); me = null; closeAccount(); });
+// Players only ever see a username. Supabase needs an email, so each username maps to an
+// address on the reserved .invalid domain, which can never receive mail.
+const USERNAME_RE = /^[A-Za-z0-9_-]{3,16}$/;
+const userEmail = u => `${u.toLowerCase()}@players.lasthit.invalid`;
 $('acctForm').addEventListener('submit', async e => {
   e.preventDefault();
-  const err = $('acctErr'), email = $('acctEmail').value.trim(), pass = $('acctPass').value, user = $('acctUser').value.trim();
+  const err = $('acctErr'), pass = $('acctPass').value, user = $('acctUser').value.trim();
   err.classList.remove('ok');
-  if (!email || !pass) { err.textContent = 'Enter your email and password.'; return; }
-  if (acctTab === 'up') {
-    if (!/^[A-Za-z0-9_.-]{3,16}$/.test(user)) { err.textContent = 'Usernames are 3 to 16 letters, numbers, dots, dashes or underscores.'; return; }
-    if (pass.length < 6) { err.textContent = 'Use a password of at least 6 characters.'; return; }
-  }
+  if (!user || !pass) { err.textContent = 'Enter your username and password.'; return; }
+  if (!USERNAME_RE.test(user)) { err.textContent = 'Usernames are 3 to 16 letters, numbers, underscores or dashes.'; return; }
+  if (acctTab === 'up' && pass.length < 6) { err.textContent = 'Use a password of at least 6 characters.'; return; }
   $('acctSubmit').disabled = true; err.textContent = acctTab === 'up' ? 'Creating your account…' : 'Signing in…';
   try {
     if (acctTab === 'up') {
-      const taken = await supa.from('profiles').select('id').eq('username', user).maybeSingle();
-      if (taken.data) { err.textContent = 'That username is taken. Try another.'; return; }
-      const { data, error } = await supa.auth.signUp({ email, password: pass, options: { data: { username: user } } });
-      if (error) { err.textContent = error.message; return; }
-      if (!data.session) { setAcctTab('in'); err.textContent = 'Check your email for a confirmation link, then sign in here.'; err.classList.add('ok'); return; }
+      const taken = await supa.from('profiles').select('id').ilike('username', user.replace(/[_%]/g, '\\$&')).limit(1);
+      if (taken.data && taken.data.length) { err.textContent = 'That username is taken. Try another.'; return; }
+      const { data, error } = await supa.auth.signUp({ email: userEmail(user), password: pass, options: { data: { username: user } } });
+      if (error) { err.textContent = /already registered|already exists/i.test(error.message) ? 'That username is taken. Try another.' : error.message; return; }
+      if (!data.session) { err.textContent = "Your account was made but couldn't be signed in yet. Try signing in."; setAcctTab('in'); return; }
     } else {
-      const { error } = await supa.auth.signInWithPassword({ email, password: pass });
-      if (error) { err.textContent = error.message === 'Invalid login credentials' ? 'That email and password don\'t match an account.' : error.message; return; }
+      const { error } = await supa.auth.signInWithPassword({ email: userEmail(user), password: pass });
+      if (error) { err.textContent = /invalid login credentials/i.test(error.message) ? "That username and password don't match an account." : error.message; return; }
     }
     const { data: { user: u } } = await supa.auth.getUser();
     await loadMe(u);
