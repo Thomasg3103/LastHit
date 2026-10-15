@@ -151,6 +151,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Hold your breath and you make no sound at all, until you run out of air.</li>
       <li>Past <strong>75% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
+      <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
     <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
@@ -177,6 +178,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <div><dt>Deaths</dt><dd id="sDeaths">0<small id="sDeathSplit"></small></dd></div>
       <div><dt>Time</dt><dd id="sTime">0:00</dd></div>
     </dl>
+    <p class="fine" id="sBest"></p>
     <button class="pen-btn" id="againBtn" type="button"><span class="led"></span>Back to the party</button>
   </div>
 </section>
@@ -491,17 +493,27 @@ const ITEM_NAMES = { phone: 'phone', keys: 'keys', jacket: 'jacket' };
 let NODES = {}, ORIG_ADJ = {}, adj = {};
 function initHouse() {
   NODES = {};
-  for (const d of [...ROOM_DEFS, ...EXTRA_DEFS]) NODES[d.id] = { ...d, items: [], notes: [], enteredHigh: false, entryFrom: null, floor: d.floor ?? 0, extra: d.id.startsWith('x_') };
+  for (const d of [...ROOM_DEFS, ...EXTRA_DEFS]) NODES[d.id] = { ...d, items: [], notes: [], snacks: [], enteredHigh: false, entryFrom: null, floor: d.floor ?? 0, extra: d.id.startsWith('x_') };
   ORIG_ADJ = {}; for (const d of ROOM_DEFS) ORIG_ADJ[d.id] = [];
   for (const [a, b] of EDGES) { ORIG_ADJ[a].push(b); ORIG_ADJ[b].push(a); }
   adj = cloneAdj(ORIG_ADJ);
   const lit = shuffled(ROOM_DEFS.filter(d => d.light && d.id !== 'living').map(d => d.id));
-  NODES[lit[0]].items.push({ kind: 'keys', nearLight: true });
-  NODES[lit[1]].items.push({ kind: 'jacket', nearLight: true });
   const dark = shuffled(ROOM_DEFS.filter(d => !d.light && !['living', 'entry', 'hall', 'landing'].includes(d.id)).map(d => d.id));
-  NODES[dark[0]].items.push({ kind: 'phone', nearLight: false });
+  const anyRoom = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id));
+  // keys and jacket usually sit by a light and the phone in the dark, but one item each run can be anywhere
+  const wild = pick(['phone', 'keys', 'jacket']), used = new Set();
+  const take = list => { const id = list.find(x => !used.has(x)); used.add(id); return id; };
+  for (const kind of ['keys', 'jacket', 'phone']) {
+    const id = kind === wild ? take(anyRoom) : kind === 'phone' ? take(dark) : take(lit);
+    NODES[id].items.push({ kind, nearLight: !!NODES[id].light });
+  }
   const noteRooms = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id));
   NOTES.forEach((n, i) => NODES[noteRooms[i]].notes.push(n));
+  for (const d of ROOM_DEFS) {
+    if (d.id === 'living') continue;
+    const n = d.type === 'kitchen' ? 3 : PARTY.has(d.type) || d.type === 'rec' ? 1 + (Math.random() < .5) : Math.random() < .45 ? 1 : 0;
+    for (let i = 0; i < n; i++) NODES[d.id].snacks.push({ kind: pick(['chips', 'chips', 'candy', 'soda', 'soda', 'pizza']), eaten: false });
+  }
 }
 const cloneAdj = a => { const o = {}; for (const k in a) o[k] = a[k].slice(); return o; };
 function bfs(a, b, avoidLiving = true) {
@@ -754,13 +766,26 @@ const ITEM_MESH = {
   keys() { const g = new THREE.Group(); const ring = mk(new THREE.TorusGeometry(.03, .006, 6, 14), MAT.metal, 0, .008, 0, g); ring.rotation.x = Math.PI / 2; B(.09, .008, .022, MAT.brass, .065, .008, .01, g).rotation.y = .4; B(.08, .008, .02, MAT.metal, .055, .01, -.03, g).rotation.y = -.5; B(.05, .02, .035, MAT.red, -.05, .012, 0, g); return g; },
   jacket() { const g = new THREE.Group(); B(.55, .06, .7, MAT.jacket, 0, .03, 0, g); for (const s of [-1, 1]) { const sl = B(.14, .05, .6, MAT.jacket, s * .36, .025, .1, g); sl.rotation.y = s * .5; } B(.3, .04, .12, MAT.jacket, 0, .07, -.32, g); return g; }
 };
+const SNACKS = {
+  chips: { name: 'a bag of chips', drop: 15, sound: 'crunch', loud: true, line: 'Loud, but your head clears a little.' },
+  candy: { name: 'a candy bar', drop: 10, sound: 'chew', loud: false, line: 'The sugar steadies you.' },
+  soda: { name: 'a can of soda', drop: 12, sound: 'fizz', loud: true, line: 'The fizz cuts through the fog.' },
+  pizza: { name: 'a cold slice of pizza', drop: 25, sound: 'chew', loud: false, line: 'You feel a lot more solid.' }
+};
+const SNACK_MAT = { yellow: std({ color: 0xd8b02a, roughness: .4, metalness: .3 }), wrapper: std({ color: 0x4a2414, roughness: .35, metalness: .3 }), gold: std({ color: 0xc8a040, metalness: .7, roughness: .3 }), crust: std({ color: 0xc89040, roughness: .8 }), cheese: std({ color: 0xe8c050, roughness: .7 }) };
+const SNACK_MESH = {
+  chips() { const g = new THREE.Group(); B(.2, .05, .27, SNACK_MAT.yellow, 0, .025, 0, g); B(.205, .052, .07, MAT.red, 0, .025, -.02, g); return g; },
+  candy() { const g = new THREE.Group(); B(.15, .02, .045, SNACK_MAT.wrapper, 0, .01, 0, g); B(.045, .022, .047, SNACK_MAT.gold, 0, .01, 0, g); return g; },
+  soda() { const g = new THREE.Group(); const c = C(.033, .033, .12, MAT.red, 0, .06, 0, g, 12); if (Math.random() < .5) { c.rotation.z = Math.PI / 2; c.position.y = .033; } return g; },
+  pizza() { const g = new THREE.Group(); const sl = C(.13, .13, .015, SNACK_MAT.cheese, 0, .008, 0, g, 3); sl.scale.z = 1.4; B(.2, .025, .03, SNACK_MAT.crust, 0, .012, -.1, g); for (let i = 0; i < 3; i++) C(.018, .018, .005, MAT.red, rnd(-.04, .04), .017, rnd(-.04, .06), g, 10); return g; }
+};
 function noteMesh() { const m = mk(new THREE.PlaneGeometry(.21, .28), MAT.paper, 0, .004, 0); m.rotation.x = -Math.PI / 2; m.castShadow = false; return m; }
 
 function buildRoom(id, day = false) {
   disposeRoom();
   const node = NODES[id];
   const nbs = (adj[id] || []).slice(); if (node.type === 'entry') nbs.push('outside');
-  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37), items: {}, notes: [], couch: null, day, flame: null };
+  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37), items: {}, notes: [], snacks: [], couch: null, day, flame: null };
   cur = r;
   layoutDoors(r, nbs);
   buildShell(r);
@@ -782,6 +807,7 @@ function buildRoom(id, day = false) {
     if (it.kind === 'keys') { const sp2 = new THREE.Sprite(new THREE.SpriteMaterial({ map: starTex, color: 0xffe9a8, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 })); sp2.scale.set(.25, .25, 1); sp2.position.set(sp.x, .08, sp.z); r.group.add(sp2); r.items.keys.spark = sp2; }
   }
   for (const text of node.notes) { const sp = randomFloor(r, .3, r.rand), m = noteMesh(); m.position.set(sp.x, .004, sp.z); m.rotation.z = r.rand() * TAU; r.group.add(m); r.notes.push({ x: sp.x, z: sp.z, text }); }
+  for (const sn of node.snacks) { if (sn.eaten) continue; const sp = randomFloor(r, .3, r.rand), m = SNACK_MESH[sn.kind](); m.position.set(sp.x, 0, sp.z); m.rotation.y = r.rand() * TAU; r.group.add(m); r.snacks.push({ x: sp.x, z: sp.z, mesh: m, sn }); }
   if (day) { r.group.add(new THREE.AmbientLight(0xfff1dc, 1.4)); const hl = new THREE.HemisphereLight(0xf4f0ff, 0x4a3a2a, 1.2); r.group.add(hl); }
   scene.add(r.group);
   return r;
@@ -839,7 +865,11 @@ function makeFriend() {
 
 /* ================= persistent scene pieces ================= */
 const creature = makeCreature(); creature.visible = false; scene.add(creature);
-const fakes = [0, 1, 2].map(() => { const f = makeCreature(); f.visible = false; scene.add(f); return { f, active: false }; });
+const fakes = [0, 1, 2].map(() => {
+  const f = makeCreature(), mats = [];
+  f.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; mats.push(o.material); } });
+  f.userData.mats = mats; f.visible = false; scene.add(f); return { f, active: false };
+});
 const smokePool = Array.from({ length: 70 }, () => {
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTex, color: 0x9da298, transparent: true, depthWrite: false, opacity: 0 }));
   s.visible = false; scene.add(s); return { s, life: 1, max: 1, vx: 0, vy: 0, vz: 0, r: 0 };
@@ -939,6 +969,10 @@ const sfx = {
   thud(where, v = .25) { burst({ type: 'lowpass', f: 220, dur: .4, g: v, where }); tone({ f: 48, f2: 32, dur: .4, g: v, where }); },
   ring(where) { for (let k = 0; k < 3; k++) for (let i = 0; i < 6; i++) tone({ f: i % 2 ? 1320 : 1760, dur: .07, type: 'square', g: .045, at: k * 1.3 + i * .08, where }); },
   gasp() { burst({ f: 1400, f2: 600, q: 1.2, dur: .7, g: .45, attack: .02 }); },
+  gaspSoft() { burst({ f: 1200, f2: 500, q: 1.2, dur: .5, g: .2, attack: .02 }); },
+  crunch() { for (let i = 0; i < 6; i++) burst({ type: 'highpass', f: rnd(2500, 5000), dur: .05, g: .22, at: i * .11 + Math.random() * .04 }); },
+  fizz() { tone({ f: 2400, dur: .04, type: 'square', g: .05 }); burst({ type: 'highpass', f: 6000, dur: .9, g: .1, at: .05, attack: .02 }); },
+  chew() { for (let i = 0; i < 3; i++) burst({ type: 'lowpass', f: 500, dur: .12, g: .12, at: i * .25 }); },
   breathOut() { burst({ type: 'lowpass', f: 900, f2: 300, dur: .8, g: .12, attack: .05 }); },
   greenout() { tone({ f: 220, f2: 35, dur: 3.5, g: .3, attack: .1 }); tone({ f: 233, f2: 37, dur: 3.5, g: .2, attack: .1 }); }
 };
@@ -1099,7 +1133,7 @@ function enterRoom(id, from, slam) {
 function placeCreatureFar() {
   let best = null, bd = -1;
   for (let i = 0; i < 30; i++) { const sp = randomFloor(cur, .4), d = Math.hypot(sp.x - P.x, sp.z - P.z); if (d > bd) { bd = d; best = sp; } }
-  CR.x = best.x; CR.z = best.z; CR.state = 'wander'; CR.idleT = 0; CR.tx = CR.x; CR.tz = CR.z; CR.cloud = null;
+  CR.x = best.x; CR.z = best.z; CR.grace = 0; CR.state = 'wander'; CR.idleT = 0; CR.tx = CR.x; CR.tz = CR.z; CR.cloud = null;
 }
 function blocked(x, z, r) {
   if (!cur) return false;
@@ -1118,7 +1152,7 @@ function soundToward(roomId, x, z, y = 1.2) {
 }
 function noise(x, z, radius, loud) {
   if (CR.room === cur.id) {
-    if (CR.state !== 'lunge' && Math.hypot(CR.x - x, CR.z - z) < radius) crHear(x, z);
+    if (CR.state !== 'lunge' && !(CR.grace > 0) && Math.hypot(CR.x - x, CR.z - z) < radius) crHear(x, z);
   } else if (cur.id !== 'living') {
     if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); }
   }
@@ -1173,11 +1207,14 @@ function update(dt) {
   G.time += dt;
   // breath
   if (breathHeld() && L.breath > 0 && L.breathLock <= 0 && !L.inhaling) {
-    L.holding = true; L.breath -= dt / 9;
+    L.holding = true; L.breath -= dt / 9; L.holdT = (L.holdT || 0) + dt;
     if (L.breath <= 0) { L.breath = 0; L.holding = false; L.breathLock = 2.5; sfx.gasp(); say('You gasp for air.', 2); noise(P.x, P.z, 8, 1); }
   } else {
-    if (L.holding) sfx.breathOut();
-    L.holding = false; L.breath = Math.min(1, L.breath + dt / 5);
+    if (L.holding) {
+      if (L.holdT > 4) { sfx.gaspSoft(); noise(P.x, P.z, 3.5, 0); } else sfx.breathOut();
+      L.holdT = 0;
+    }
+    L.holding = false; L.breath = Math.min(1, L.breath + dt / 10);
   }
   L.breathLock -= dt;
 
@@ -1215,7 +1252,7 @@ function update(dt) {
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
   L.light = Math.max(0, L.light - dt * .08);
-  if (!L.inhaling) L.high = Math.max(0, L.high - dt * .6);
+  if (!L.inhaling) L.high = Math.max(0, L.high - dt * .3);
   G.peak = Math.max(G.peak, L.high);
   if (L.high >= 100) { L.high = 100; G.peak = 100; hud(); greenout(); return; }
   L.lr = Math.max(lampRadius(), L.inhaling ? 2.2 : 0);
@@ -1245,6 +1282,14 @@ function update(dt) {
       say(left.length ? `Got your ${ITEM_NAMES[k]}. Saved. Still need: ${left.map(x => ITEM_NAMES[x]).join(', ')}.` : `Got your ${ITEM_NAMES[k]}. That's everything. Get to the front door.`, 4);
     }
   }
+  for (const sk of cur.snacks) {
+    if (sk.sn.eaten || Math.hypot(sk.x - P.x, sk.z - P.z) > .8) continue;
+    const def = SNACKS[sk.sn.kind];
+    sk.sn.eaten = true; sk.mesh.visible = false; L.snackDrop = (L.snackDrop || 0) + def.drop; sfx[def.sound]();
+    if (def.loud) noise(P.x, P.z, 4, 0);
+    say(`You eat ${def.name}. ${def.line}`, 3);
+  }
+  if (L.snackDrop > 0) { const k = Math.min(L.snackDrop, dt * 8); L.high = Math.max(0, L.high - k); L.snackDrop -= k; }
   let note = null; for (const n of cur.notes) if (Math.hypot(n.x - P.x, n.z - P.z) < 1.3) note = n;
   if (note !== L.noteShown) { L.noteShown = note; noteEl.hidden = !note; if (note) noteEl.textContent = note.text; }
 
@@ -1321,7 +1366,13 @@ function updateWorld(dt) {
     fk.life -= dt; fk.age += dt;
     const d = Math.hypot(fk.x - P.x, fk.z - P.z);
     const ang = Math.atan2(-(fk.x - P.x), -(fk.z - P.z)), diff = Math.abs(Math.atan2(Math.sin(ang - P.yaw), Math.cos(ang - P.yaw)));
-    if ((diff < .3 && fk.age > .35) || d < 1.8 || fk.life <= 0) { if (fk.life > 0) { L.stat = .35; sfx.vanish(); } fk.active = false; fk.f.visible = false; }
+    if (fk.stay) {
+      // these ones don't flinch when you look; they just fade, so staring isn't a sure test
+      if (d < 1.4) fk.life = Math.min(fk.life, .5);
+      if (fk.life <= 0) { fk.active = false; fk.f.visible = false; }
+    } else if ((diff < .3 && fk.age > .35) || d < 1.8 || fk.life <= 0) { if (fk.life > 0) { L.stat = .35; sfx.vanish(); } fk.active = false; fk.f.visible = false; }
+    const op = clamp(Math.min(fk.age / .4, fk.stay ? fk.life / .8 : 1), 0, 1);
+    for (const m of fk.f.userData.mats) m.opacity = op;
   }
 }
 function spawnFake() {
@@ -1330,7 +1381,8 @@ function spawnFake() {
     const side = Math.random() < .5 ? -1 : 1, a = P.yaw + side * rnd(.9, 1.4), d = rnd(2.5, 5.5);
     const x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d;
     if (blocked(x, z, .3)) continue;
-    Object.assign(fk, { active: true, x, z, life: rnd(1.5, 3.5), age: 0 }); fk.f.visible = true;
+    const stay = Math.random() < .3;
+    Object.assign(fk, { active: true, x, z, life: stay ? rnd(3, 6) : rnd(1.5, 3.5), age: 0, stay }); fk.f.visible = true;
     if (Math.random() < .3) sfx.sniff({ x, y: 2, z }, .12);
     return;
   }
@@ -1369,8 +1421,9 @@ function updateCreature(dt) {
     return;
   }
   // in this room
+  CR.grace = Math.max(0, (CR.grace || 0) - dt);
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
-  if (CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
+  if (CR.grace <= 0 && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
   switch (CR.state) {
     case 'wander':
@@ -1420,7 +1473,7 @@ function updateCreature(dt) {
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .4 : .25); if (d < 4 && Math.random() < .3) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .14); }
-  if (Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
   CR.sniffing = sniffing;
@@ -1438,7 +1491,7 @@ function creatureEnters(fromRoom) {
   const dr = cur.doors.find(x => x.to === fromRoom) || pick(cur.doors.filter(x => !x.front));
   CR.x = dr.x + dr.nx * .6; CR.z = dr.z + dr.nz * .6;
   for (let k = 0; k < 8 && blocked(CR.x, CR.z, .32); k++) { CR.x += dr.nx * .2; CR.z += dr.nz * .2; }
-  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null;
+  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6;
   if (CR.targetRoom === cur.id) CR.targetRoom = null;
   sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); sfx.creak({ x: dr.x, y: 1.2, z: dr.z }, .2);
   if (dr.panel) { dr.panel.rotation.y = -1.1; L.closing = { dr, t: 0, slam: false }; }
@@ -1505,7 +1558,7 @@ function updateEnding(dt) {
     P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 2.5);
   }
   step(9);
-  if (step(10)) sfx.sniff({ x: P.x + Math.sin(P.yaw) * 1.4, y: 1.7, z: P.z + Math.cos(P.yaw) * 1.4 }, .07);
+  if (step(10)) sfx.sniff({ x: P.x + Math.sin(P.yaw) * 1.4, y: 1.7, z: P.z + Math.cos(P.yaw) * 1.4 }, .15);
   if (step(11)) { fade = 1; if (AC) A.master.gain.setValueAtTime(0, AC.currentTime); }
   if (step(12)) showScore();
 }
@@ -1519,6 +1572,13 @@ function showScore() {
   $('sDeaths').firstChild.textContent = G.deathsC + G.deathsG;
   $('sDeathSplit').textContent = `${G.deathsC} caught · ${G.deathsG} greened out`;
   $('sTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  const run = { time: s, pulls: G.pulls, deaths: G.deathsC + G.deathsG };
+  let best = null; try { best = JSON.parse(localStorage.getItem('houseparty.best')); } catch (e) {}
+  const news = [];
+  if (best) { for (const k of ['time', 'pulls', 'deaths']) if (run[k] < best[k]) { best[k] = run[k]; news.push(k); } } else best = { ...run };
+  try { localStorage.setItem('houseparty.best', JSON.stringify(best)); } catch (e) {}
+  const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
+  $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
   $('score').hidden = false; msgEl.classList.remove('show');
 }
 
