@@ -40,6 +40,14 @@ html,body{height:100%;margin:0;background:var(--void);color:var(--ash);overflow:
 #hud[data-lvl="4"] .bar.high i{background:var(--ember)}
 #hud[data-lvl="5"] .bar.high i{background:var(--blood);animation:flick .25s steps(2) infinite}
 #hud[data-lvl="5"] .meters{animation:jit .18s steps(3) infinite}
+#sensor{display:flex;align-items:center;justify-content:space-between;color:var(--smoke);line-height:1}
+#sensor .bars{display:flex;gap:3px;align-items:flex-end;height:18px}
+#sensor .bars i{display:block;width:7px;background:rgba(207,213,200,.13);transition:background .15s}
+#sensor .bars i:nth-child(1){height:6px}#sensor .bars i:nth-child(2){height:9px}#sensor .bars i:nth-child(3){height:12px}#sensor .bars i:nth-child(4){height:15px}#sensor .bars i:nth-child(5){height:18px}
+#sensor .bars i.on{background:var(--ash)}
+#sensor[data-l="3"] .bars i.on{background:var(--ember)}
+#sensor[data-l="4"] .bars i.on,#sensor[data-l="5"] .bars i.on{background:var(--blood)}
+#sensor.ping .bars{filter:brightness(1.9) drop-shadow(0 0 4px rgba(195,25,44,.8))}
 #items{display:grid;gap:4px;text-align:right;font-size:21px;line-height:1}
 #items span{color:var(--smoke)}
 #items span::before{content:"\25A1  "}
@@ -112,6 +120,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
   <div class="meters">
     <div><div class="lbl"><span>High</span><b id="highLbl">Sober 0%</b></div><div class="bar high"><i id="highBar"></i></div></div>
     <div><div class="lbl"><span>Breath</span><b id="breathLbl"></b></div><div class="bar breath"><i id="breathBar"></i></div></div>
+    <div id="sensor" data-l="0"><span>Sensor</span><span class="bars"><i></i><i></i><i></i><i></i><i></i></span></div>
   </div>
   <div id="items"><span id="itPhone">Phone</span><span id="itKeys">Keys</span><span id="itJacket">Jacket</span></div>
 </div>
@@ -151,6 +160,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Hold your breath and you make no sound at all, until you run out of air.</li>
       <li>Past <strong>75% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
+      <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
       <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
@@ -969,6 +979,7 @@ const sfx = {
   thud(where, v = .25) { burst({ type: 'lowpass', f: 220, dur: .4, g: v, where }); tone({ f: 48, f2: 32, dur: .4, g: v, where }); },
   ring(where) { for (let k = 0; k < 3; k++) for (let i = 0; i < 6; i++) tone({ f: i % 2 ? 1320 : 1760, dur: .07, type: 'square', g: .045, at: k * 1.3 + i * .08, where }); },
   gasp() { burst({ f: 1400, f2: 600, q: 1.2, dur: .7, g: .45, attack: .02 }); },
+  beep(v) { tone({ f: 1480, dur: .06, g: .035 + v * .012 }); },
   gaspSoft() { burst({ f: 1200, f2: 500, q: 1.2, dur: .5, g: .2, attack: .02 }); },
   crunch() { for (let i = 0; i < 6; i++) burst({ type: 'highpass', f: rnd(2500, 5000), dur: .05, g: .22, at: i * .11 + Math.random() * .04 }); },
   fizz() { tone({ f: 2400, dur: .04, type: 'square', g: .05 }); burst({ type: 'highpass', f: 6000, dur: .9, g: .1, at: .05, attack: .02 }); },
@@ -1053,6 +1064,7 @@ if (isTouch) {
 }
 
 /* ================= ui ================= */
+const sensorEl = $('sensor'), sensorBars = [...document.querySelectorAll('#sensor .bars i')];
 const hudEl = $('hud'), msgEl = $('msg'), whispEl = $('whisper'), pullEl = $('pull'), noteEl = $('note'), fadeEl = $('fade'), roomEl = $('roomName');
 let msgTimer = 0, roomTimer = 0;
 function say(text, dur = 2.8, sub = false) { msgEl.textContent = isTouch ? text.replace(/SPACE/g, 'HIT') : text; msgEl.classList.toggle('sub', sub); msgEl.classList.add('show'); msgTimer = dur; }
@@ -1066,13 +1078,14 @@ function whisperText() {
 const LEVELS = [[0, 'Sober'], [15, 'Buzzed'], [35, 'Baked'], [50, 'Zooted'], [75, 'Cooked'], [90, 'Greening out']];
 let lastHud = '';
 function hud() {
-  const h = Math.round(L.high), b = Math.round(L.breath * 100), sig = h + '|' + b + '|' + L.holding + '|' + G.items.phone + G.items.keys + G.items.jacket;
+  const h = Math.round(L.high), b = Math.round(L.breath * 100), sig = h + '|' + b + '|' + L.holding + '|' + (L.sense || 0) + '|' + G.items.phone + G.items.keys + G.items.jacket;
   if (sig === lastHud) return; lastHud = sig;
   let lvl = 0; LEVELS.forEach(([v], i) => { if (h >= v) lvl = i; });
   $('highBar').style.width = h + '%'; $('highLbl').textContent = LEVELS[lvl][1] + ' ' + h + '%';
   hudEl.dataset.lvl = lvl;
   $('breathBar').style.width = b + '%'; $('breathLbl').textContent = L.holding ? 'Holding' : L.breathLock > 0 ? 'Gasping' : '';
   hudEl.classList.toggle('holding', L.holding);
+  sensorEl.dataset.l = L.sense || 0; sensorBars.forEach((el, i) => el.classList.toggle('on', i < (L.sense || 0)));
   $('itPhone').classList.toggle('got', G.items.phone); $('itKeys').classList.toggle('got', G.items.keys); $('itJacket').classList.toggle('got', G.items.jacket);
 }
 
@@ -1098,7 +1111,7 @@ function newRun() {
 function wakeUp(text) {
   L = freshLife(); SCENT = []; noteEl.hidden = true;
   resetLayout();
-  CR.room = pick(['storage', 'wine', 'closet', 'garage']); CR.state = 'wander'; CR.targetRoom = null; CR.timer = rnd(14, 20);
+  CR.room = pick(['storage', 'wine', 'closet', 'garage']); CR.visiting = false; CR.state = 'wander'; CR.targetRoom = null; CR.timer = rnd(14, 20);
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
   enterRoom('living', null, false);
@@ -1128,12 +1141,27 @@ function enterRoom(id, from, slam) {
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
   if (CR.room === id) placeCreatureFar();
+  else if (from !== null && id !== 'living' && G.time - (G.lastVisit ?? -99) > 45 && Math.random() < .25) creatureVisit(dr);
   if (node.type === 'fakeliving') setTimeout(() => { if (cur && cur.id === id) say("This isn't the living room.", 2.5); }, 1600);
+}
+// It's already standing in the room when you walk in: sniffing, harmless for a few seconds, then it leaves.
+function creatureVisit(entry) {
+  let best = null;
+  for (let i = 0; i < 40 && !best; i++) {
+    const a = P.yaw + rnd(-.5, .5), d = rnd(3.5, 5.5), x = P.x - Math.sin(a) * d, z = P.z - Math.cos(a) * d;
+    if (!blocked(x, z, .35)) best = { x, z };
+  }
+  if (!best) return;
+  G.lastVisit = G.time;
+  CR.room = cur.id; CR.x = best.x; CR.z = best.z; CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
+  CR.state = 'sniff'; CR.sniffT = 3; CR.sniffSfx = 0; CR.grace = 3; CR.cloud = null; CR.targetRoom = null; CR.visiting = true;
+  CR.avoid = entry ? entry.to : null;
+  L.stat = .3;
 }
 function placeCreatureFar() {
   let best = null, bd = -1;
   for (let i = 0; i < 30; i++) { const sp = randomFloor(cur, .4), d = Math.hypot(sp.x - P.x, sp.z - P.z); if (d > bd) { bd = d; best = sp; } }
-  CR.x = best.x; CR.z = best.z; CR.grace = 0; CR.state = 'wander'; CR.idleT = 0; CR.tx = CR.x; CR.tz = CR.z; CR.cloud = null;
+  CR.x = best.x; CR.z = best.z; CR.grace = 0; CR.visiting = false; CR.state = 'wander'; CR.idleT = 0; CR.tx = CR.x; CR.tz = CR.z; CR.cloud = null;
 }
 function blocked(x, z, r) {
   if (!cur) return false;
@@ -1152,7 +1180,7 @@ function soundToward(roomId, x, z, y = 1.2) {
 }
 function noise(x, z, radius, loud) {
   if (CR.room === cur.id) {
-    if (CR.state !== 'lunge' && !(CR.grace > 0) && Math.hypot(CR.x - x, CR.z - z) < radius) crHear(x, z);
+    if (CR.state !== 'lunge' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) crHear(x, z);
   } else if (cur.id !== 'living') {
     if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); }
   }
@@ -1207,8 +1235,8 @@ function update(dt) {
   G.time += dt;
   // breath
   if (breathHeld() && L.breath > 0 && L.breathLock <= 0 && !L.inhaling) {
-    L.holding = true; L.breath -= dt / 9; L.holdT = (L.holdT || 0) + dt;
-    if (L.breath <= 0) { L.breath = 0; L.holding = false; L.breathLock = 2.5; sfx.gasp(); say('You gasp for air.', 2); noise(P.x, P.z, 8, 1); }
+    L.holding = true; L.breath -= dt / (9 * (1 - L.high / 100 * .6)); L.holdT = (L.holdT || 0) + dt;
+    if (L.breath <= 0) { L.breath = 0; L.holding = false; L.holdT = 0; L.breathLock = 3; sfx.gasp(); sfx.cough(); L.shake = 3; say('You run out of air and start coughing.', 2.5); noise(P.x, P.z, 14, 2); }
   } else {
     if (L.holding) {
       if (L.holdT > 4) { sfx.gaspSoft(); noise(P.x, P.z, 3.5, 0); } else sfx.breathOut();
@@ -1302,6 +1330,16 @@ function update(dt) {
   for (const lt of cur.lights) if (lt.kind !== 'door') dz = Math.max(dz, clamp(1 - Math.hypot(lt.x - P.x, lt.z - P.z) / 3.2, 0, 1));
   L.dizzy += (dz * (.35 + L.high / 100 * .9) - L.dizzy) * Math.min(1, dt * 2);
 
+  // proximity sensor: bars by distance in this room, one bar if it's next door
+  let lvl = 0;
+  if (CR.room === cur.id) { const cd = Math.hypot(CR.x - P.x, CR.z - P.z); lvl = cd < 3 ? 5 : cd < 5 ? 4 : cd < 8 ? 3 : 2; }
+  else if (cur.id !== 'living' && (adj[cur.id] || []).includes(CR.room)) lvl = 1;
+  if (L.high > 50 && Math.random() < dt * (L.high - 50) / 50 * 3) L.senseGlitch = { lvl: Math.random() * 6 | 0, t: rnd(.15, .5) };
+  if (L.senseGlitch) { L.senseGlitch.t -= dt; if (L.senseGlitch.t > 0) lvl = L.senseGlitch.lvl; else L.senseGlitch = null; }
+  L.sense = lvl;
+  L.beepT = (L.beepT ?? 0) - dt;
+  if (lvl > 0 && L.beepT <= 0) { sfx.beep(lvl); L.beepT = [0, 2.2, 1.4, .9, .5, .25][lvl]; sensorEl.classList.add('ping'); L.pingT = .08; }
+  if (L.pingT > 0) { L.pingT -= dt; if (L.pingT <= 0) sensorEl.classList.remove('ping'); }
   const bpm = 60 + L.high * .3 + L.near * 85 + (L.holding ? 15 : 0);
   L.hb -= dt; if (L.hb <= 0) { sfx.heart(.25 + L.near * .7 + (L.holding ? .2 : 0)); L.hb = 60 / bpm; }
   L.stat = Math.max(0, L.stat - dt);
@@ -1423,7 +1461,7 @@ function updateCreature(dt) {
   // in this room
   CR.grace = Math.max(0, (CR.grace || 0) - dt);
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
-  if (CR.grace <= 0 && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
+  if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
   switch (CR.state) {
     case 'wander':
@@ -1437,7 +1475,7 @@ function updateCreature(dt) {
       if (CR.sniffT <= 0) {
         let best = null; for (const c of SCENT) if (c.room === cur.id && c.s > .08 && (!best || c.s > best.s)) best = c;
         if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; }
-        else if (CR.targetRoom) startLeave();
+        else if (CR.targetRoom || CR.visiting) startLeave();
         else { CR.state = 'wander'; const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; }
       }
       break;
@@ -1456,7 +1494,7 @@ function updateCreature(dt) {
       tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45;
       if (Math.hypot(tx - CR.x, tz - CR.z) < .35) {
         sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); if (dr.panel) { dr.panel.rotation.y = -1; L.closing = { dr, t: 0, slam: false }; }
-        CR.room = dr.to; CR.timer = rnd(3, 6); if (CR.targetRoom === dr.to) CR.targetRoom = null; creature.visible = false; return;
+        CR.room = dr.to; CR.visiting = false; CR.timer = rnd(3, 6); if (CR.targetRoom === dr.to) CR.targetRoom = null; creature.visible = false; return;
       }
       break;
     }
@@ -1473,7 +1511,7 @@ function updateCreature(dt) {
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .4 : .25); if (d < 4 && Math.random() < .3) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .14); }
-  if (CR.grace <= 0 && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && !CR.visiting && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
   CR.sniffing = sniffing;
@@ -1482,8 +1520,8 @@ function startLunge() { CR.state = 'lunge'; CR.lungeT = .55; const d = Math.hypo
 function startLeave() {
   let dr = null;
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
-  if (!dr) { const opts = cur.doors.filter(x => !x.front && x.to !== 'living'); dr = opts.length ? pick(opts) : null; }
-  if (!dr) { CR.idleT = 0; return; }
+  if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); dr = opts.length ? pick(opts) : null; }
+  if (!dr) { CR.idleT = 0; CR.visiting = false; return; }
   CR.state = 'leave'; CR.leaveDoor = dr; CR.idleT = 0;
 }
 function creatureEnters(fromRoom) {
@@ -1491,7 +1529,7 @@ function creatureEnters(fromRoom) {
   const dr = cur.doors.find(x => x.to === fromRoom) || pick(cur.doors.filter(x => !x.front));
   CR.x = dr.x + dr.nx * .6; CR.z = dr.z + dr.nz * .6;
   for (let k = 0; k < 8 && blocked(CR.x, CR.z, .32); k++) { CR.x += dr.nx * .2; CR.z += dr.nz * .2; }
-  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6;
+  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6; CR.visiting = false;
   if (CR.targetRoom === cur.id) CR.targetRoom = null;
   sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); sfx.creak({ x: dr.x, y: 1.2, z: dr.z }, .2);
   if (dr.panel) { dr.panel.rotation.y = -1.1; L.closing = { dr, t: 0, slam: false }; }
