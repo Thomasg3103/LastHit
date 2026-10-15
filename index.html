@@ -570,8 +570,8 @@ const F = {
 /* ================= accounts + online leaderboard (Supabase) ================= */
 // Paste the project's URL and anon (public) key here. The row level security in
 // supabase/migrations only lets players read the board and add scores as themselves.
-const SUPABASE_URL = '';
-const SUPABASE_ANON_KEY = '';
+const SUPABASE_URL = 'https://syuorzolqqjkbkdyoeia.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dW9yem9scXFqa2JrZHlvZWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwODE1MzUsImV4cCI6MjEwNzY1NzUzNX0.G-wPnD8fp-QXQR0ivOdl2k1ks6ZlBBko4addC3_cGJE';
 const boardOn = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 let supa = null, me = null; // me = { id, username }
 const fmtTime = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
