@@ -523,7 +523,7 @@ const gdist = (a, b, avoid = true) => { const p = bfs(a, b, avoid); return p ? p
 function swapNodes(P, X) { const m = id => id === P ? X : id === X ? P : id; const n = {}; for (const id in adj) n[m(id)] = adj[id].map(m); adj = n; }
 function insertBetween(R, P, X) { adj[R] = adj[R].map(n => n === P ? X : n); adj[P] = adj[P].map(n => n === R ? X : n); adj[X] = [R, P]; NODES[X].floor = NODES[R].floor; }
 function shuffleFrom(R, P) {
-  if (L.high >= 90 && Math.random() < .45) {
+  if (L.high >= 85 && Math.random() < .45) {
     const free = EXTRA_DEFS.map(e => e.id).filter(id => !adj[id]);
     if (free.length) { const X = pick(free); insertBetween(R, P, X); return X; }
   }
@@ -1204,7 +1204,7 @@ function update(dt) {
   L.stepAcc += moved;
   if (L.stepAcc > (running ? .95 : .7)) { L.stepAcc = 0; sfx.myStep(L.holding ? .03 : running ? .22 : .08); }
   if (running) { L.runNoise -= dt; if (L.runNoise <= 0) { noise(P.x, P.z, 10, 1); L.runNoise = .4; } }
-  L.noiseR = L.holding ? 0 : running ? 9 : moving ? 2.6 : 1.2;
+  L.noiseR = L.holding ? 0 : running ? 10 : moving ? 3 : 1.4;
 
   // pen
   const held = penHeld();
@@ -1214,7 +1214,7 @@ function update(dt) {
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
-  L.light = Math.max(0, L.light - dt * .06);
+  L.light = Math.max(0, L.light - dt * .08);
   if (!L.inhaling) L.high = Math.max(0, L.high - dt * .6);
   G.peak = Math.max(G.peak, L.high);
   if (L.high >= 100) { L.high = 100; G.peak = 100; hud(); greenout(); return; }
@@ -1270,7 +1270,7 @@ function update(dt) {
   } else pullEl.hidden = true;
   hud();
 }
-function lampRadius() { return L.light * 12 * (1 + L.high * .005); }
+function lampRadius() { return L.light * 11 * (1 + L.high * .005); }
 
 function updateWorld(dt) {
   // scent fades
@@ -1364,17 +1364,17 @@ function updateCreature(dt) {
         CR.room = next;
         if (CR.targetRoom === next) CR.targetRoom = null;
       }
-      CR.timer = goal ? rnd(4.5, 7) : rnd(12, 20);
+      CR.timer = goal ? rnd(3.5, 5.5) : rnd(10, 16);
     }
     return;
   }
   // in this room
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
-  if (CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 1.8) startLunge(); else crHear(P.x, P.z); }
+  if (CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
   switch (CR.state) {
     case 'wander':
-      speed = .55; CR.idleT += dt;
+      speed = .7; CR.idleT += dt;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .4) { if (Math.random() < .45) { CR.state = 'sniff'; CR.sniffT = rnd(1.5, 2.6); } else { const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; } }
       if (CR.idleT > 26 || CR.targetRoom) startLeave();
       break;
@@ -1389,11 +1389,11 @@ function updateCreature(dt) {
       }
       break;
     case 'track':
-      speed = 1.25 + Object.values(G.items).filter(Boolean).length * .1;
+      speed = 1.6 + Object.values(G.items).filter(Boolean).length * .15;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
       break;
     case 'lunge':
-      CR.lungeT -= dt; CR.x += CR.ldx * 5.5 * dt; CR.z += CR.ldz * 5.5 * dt;
+      CR.lungeT -= dt; CR.x += CR.ldx * 7 * dt; CR.z += CR.ldz * 7 * dt;
       CR.x = clamp(CR.x, -cur.w / 2 + .3, cur.w / 2 - .3); CR.z = clamp(CR.z, -cur.d / 2 + .3, cur.d / 2 - .3);
       if (CR.lungeT <= 0) { CR.state = 'sniff'; CR.sniffT = 1.4; }
       break;
