@@ -1454,6 +1454,20 @@ const hudEl = $('hud'), msgEl = $('msg'), whispEl = $('whisper'), pullEl = $('pu
 let msgTimer = 0, roomTimer = 0;
 function say(text, dur = 2.8, sub = false) { msgEl.textContent = isTouch ? text.replace(/SPACE/g, 'HIT') : text; msgEl.classList.toggle('sub', sub); msgEl.classList.add('show'); msgTimer = dur; }
 function showRoom(name) { roomEl.classList.remove('glitch'); roomEl.textContent = name; roomEl.classList.add('show'); roomTimer = 2.4; }
+// what you say out loud when the house has moved
+const SHIFT_LINES = [
+  'Wtf.', "This wasn't supposed to be here.", 'Huh?', "I'm so fucking geeked right now.",
+  'Nah. Nah, this was the {room}.', "Okay, that's not right.", 'I literally just came from here.',
+  'Who moved the {room}?', 'Bro. What.', 'I need to stop hitting that pen.', 'This house is fucking with me.',
+  'Was this always here?', "Where's the {room}? It was right here.", 'Nope. Nope nope nope.',
+  "I'm not that high. I'm not that high.", "Okay. Breathe. Doors don't move.", 'That door just lied to me.'
+];
+let lastShiftLine = '';
+function shiftLine(expected) {
+  let line; do line = pick(SHIFT_LINES); while (line === lastShiftLine && SHIFT_LINES.length > 1);
+  lastShiftLine = line;
+  return '"' + line.replace('{room}', (expected || 'hallway').toLowerCase()) + '"';
+}
 function showRoomShift(expected, actual) {
   roomEl.classList.remove('glitch'); void roomEl.offsetWidth;
   roomEl.textContent = expected; roomEl.classList.add('show', 'glitch'); roomTimer = 3.2;
@@ -1571,7 +1585,7 @@ function enterRoom(id, from, slam) {
     for (let k = 0; k < 10 && blocked(P.x, P.z, PR); k++) { P.x += dr.nx * .2; P.z += dr.nz * .2; }
     if (dr.panel) { dr.panel.rotation.y = -1.35; L.behind = { dr, t: 0 }; } else L.behind = null;
   }
-  if (shift) { showRoomShift(shift.expected, node.name || ' '); sfx.shiftSting(); if (!G.seenShift) { G.seenShift = true; setTimeout(() => say('Wait. That door used to go somewhere else.', 3.5), 1100); } }
+  if (shift) { showRoomShift(shift.expected, node.name || ' '); sfx.shiftSting(); setTimeout(() => { if (state === 'playing' || state === 'trans') say(shiftLine(shift.expected), 3, true); }, 1100); }
   else showRoom(node.name || ' ');
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
