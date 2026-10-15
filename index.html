@@ -69,7 +69,7 @@ body.touch .inv kbd{display:none}
 .inv.empty{opacity:.4}
 .inv.on{border-color:#cfe0ff;box-shadow:0 0 14px rgba(207,224,255,.4)}
 #hideView{position:fixed;inset:0;pointer-events:none}
-#hideView.wardrobe{background:repeating-linear-gradient(90deg,#000 0 7.5vw,rgba(0,0,0,.25) 7.5vw 8.5vw),radial-gradient(ellipse at center,transparent 30%,#000 85%)}
+#hideView.wardrobe{background:repeating-linear-gradient(90deg,#000 0 5vw,rgba(0,0,0,.15) 5vw 8vw),radial-gradient(ellipse at center,transparent 40%,#000 90%)}
 #hideView.bed{background:linear-gradient(#000 0 46%,rgba(0,0,0,.6) 52%,transparent 64%),radial-gradient(ellipse at 50% 80%,transparent 35%,#000 90%)}
 #hideView.tub{background:radial-gradient(ellipse 70% 55% at 50% 40%,transparent 45%,rgba(0,0,0,.92) 75%),linear-gradient(transparent 70%,#000 92%)}
 #toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 56px);left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(4,5,4,.85);border:1px solid rgba(134,227,109,.55);font-family:var(--f-hud);font-size:19px;letter-spacing:.1em;text-transform:uppercase;color:var(--leaf);pointer-events:none;opacity:0;transition:opacity .4s;white-space:nowrap}
@@ -185,6 +185,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 <body>
 <canvas id="game" aria-label="Game view"></canvas>
 <div id="fade"></div>
+<div id="hideView" hidden></div>
 
 <div id="hud" hidden>
   <div class="meters">
@@ -197,7 +198,6 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 <div id="roomName"></div>
 <div id="prompt" hidden></div>
 <div id="pull" hidden></div>
-<div id="hideView" hidden></div>
 <div id="inv" hidden>
   <button class="inv empty" id="invFood" type="button" aria-label="Eat a snack"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c6-3 12-3 18 0L12 22z" fill="#e8c050"/><path d="M3 5c6-3 12-3 18 0l-1.2 2.4C14.6 5 9.4 5 4.2 7.4z" fill="#c89040"/><circle cx="10" cy="10" r="1.7" fill="#b01818"/><circle cx="14" cy="13" r="1.5" fill="#b01818"/><circle cx="11.5" cy="16" r="1.2" fill="#b01818"/></svg><b id="foodCount">0</b><kbd>Q</kbd></button>
   <button class="inv empty" id="invDecoy" type="button" aria-label="Throw a bottle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4v4l2 3v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9l2-3z" fill="#2f6a34"/><rect x="9.5" y="11" width="5" height="5" rx=".5" fill="#d9d2bf"/><rect x="10" y="2" width="4" height="1.6" fill="#c8a040"/></svg><b id="decoyCount">0</b><kbd>G</kbd></button>
@@ -1095,7 +1095,7 @@ const FURN = {
     for (let k = 0; k < 2; k++) onWall(r, () => {
       const g = new THREE.Group(); C(.12, .14, .03, MAT.metal, 0, .015, 0, g, 12); C(.012, .012, 1.45, MAT.metal, 0, .74, 0, g, 6);
       const sh = mk(new THREE.CylinderGeometry(.14, .22, .26, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide }), 0, 1.5, 0, g); sh.castShadow = false;
-      g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 7, dist: 9, kind: 'safe' };
+      g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 9.5, dist: 10, kind: 'safe' };
       return g;
     }, .4, .4);
     picture(r); picture(r);
@@ -2454,7 +2454,6 @@ function tick(dt) {
 }
 requestAnimationFrame(frame);
 ready = true;
-if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false; $('dailyBtn').disabled = false;
 </script>
 </body>
