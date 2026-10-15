@@ -75,6 +75,10 @@ kbd{font-family:var(--f-hud);font-size:1.05em;border:1px solid rgba(207,213,200,
 .stats dt{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--smoke)}
 .stats dd{margin:0;font-family:var(--f-hud);font-size:32px;font-variant-numeric:tabular-nums}
 .fine{margin:0;font-size:.82rem;color:var(--smoke)}
+.fine a{color:var(--ash)}
+#homeLink{position:fixed;right:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 12px);font-family:var(--f-hud);font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:var(--smoke);text-decoration:none;opacity:.7}
+#homeLink:hover,#homeLink:focus-visible{opacity:1;color:var(--ash)}
+body.touch #homeLink{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 60px)}
 
 @keyframes flick{50%{opacity:.35}}
 @keyframes jit{0%,100%{transform:none}33%{transform:translate(1px,-1px)}66%{transform:translate(-2px,1px)}}
@@ -86,6 +90,7 @@ kbd{font-family:var(--f-hud);font-size:1.05em;border:1px solid rgba(207,213,200,
 <body>
 
 <canvas id="game" aria-label="Game view"></canvas>
+<a id="homeLink" href="index.html">← Main game</a>
 
 <div id="hud" hidden>
   <div class="meters">
@@ -119,7 +124,7 @@ kbd{font-family:var(--f-hud);font-size:1.05em;border:1px solid rgba(207,213,200,
       <li>Find <strong>3 keys</strong>, then the hatch.</li>
     </ul>
     <button class="pen-btn" id="startBtn" type="button"><span class="led"></span>Take the first hit</button>
-    <p class="fine">Headphones on. Sound starts when you press the button.</p>
+    <p class="fine">Headphones on. Sound starts when you press the button. <a href="index.html">Back to the main game</a></p>
   </div>
 </section>
 
@@ -135,6 +140,7 @@ kbd{font-family:var(--f-hud);font-size:1.05em;border:1px solid rgba(207,213,200,
       <div><dt>Keys</dt><dd id="sKeys">0/3</dd></div>
     </dl>
     <button class="pen-btn" id="againBtn" type="button"><span class="led"></span>Go back down</button>
+    <p class="fine"><a href="index.html">Back to the main game</a></p>
   </div>
 </section>
 
