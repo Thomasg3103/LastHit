@@ -104,6 +104,26 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 .pen-btn.hard .led{background:var(--blood);box-shadow:0 0 10px var(--blood)}
 .pen-btn.hard:hover{box-shadow:inset 0 0 0 1px var(--ash),0 0 34px rgba(195,25,44,.35)}
 .fine strong{color:var(--ash);font-weight:400}
+.board-wrap{display:grid;gap:10px}
+.board-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.tabs{display:flex;gap:6px}
+.tabs button{font:inherit;font-family:var(--f-hud);font-size:18px;letter-spacing:.1em;text-transform:uppercase;color:var(--smoke);background:none;border:1px solid rgba(207,213,200,.25);border-radius:999px;padding:2px 12px;cursor:pointer}
+.tabs button.on{color:var(--void);background:var(--ash);border-color:var(--ash)}
+.tabs button:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
+.board{list-style:none;margin:0;padding:0;display:grid;gap:2px;font-family:var(--f-hud);font-size:20px}
+.board li{display:grid;grid-template-columns:2.2em minmax(0,1fr) auto;gap:10px;align-items:baseline;padding:3px 8px;border-radius:3px}
+.board li:nth-child(odd){background:rgba(207,213,200,.04)}
+.board li.me{background:rgba(134,227,109,.14);color:#fff}
+.board .rk{color:var(--smoke);font-variant-numeric:tabular-nums}
+.board .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board .tm{font-variant-numeric:tabular-nums;text-align:right}
+.board .tm small{color:var(--smoke);font-size:15px;margin-left:8px}
+.board .empty{color:var(--smoke);font-family:var(--f-text);font-size:15px;display:block;padding:4px 8px}
+.submit{display:grid;gap:8px}
+.submit label{font-family:var(--f-hud);font-size:18px;letter-spacing:.12em;text-transform:uppercase;color:var(--smoke)}
+.submit .row{display:flex;gap:10px;flex-wrap:wrap}
+.submit input{flex:1 1 12rem;min-width:0;font:inherit;font-size:1rem;color:var(--ash);background:rgba(207,213,200,.06);border:1px solid rgba(207,213,200,.3);border-radius:999px;padding:11px 16px}
+.submit input:focus-visible{outline:2px solid var(--leaf);outline-offset:2px}
 #modeTag{color:var(--blood);font-size:18px;letter-spacing:.14em}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;margin:0}
 .stats div{display:grid;gap:2px;min-width:0}
@@ -187,6 +207,10 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
     </div>
+    <section class="board-wrap" id="titleBoard" hidden>
+      <div class="board-head"><p class="eyebrow">Fastest escapes</p><div class="tabs" id="titleTabs"><button type="button" data-mode="normal" class="on">Normal</button><button type="button" data-mode="one">One life</button></div></div>
+      <ol class="board" id="boardTitle"></ol>
+    </section>
     <p class="fine"><strong>Wake up</strong> is the normal game: die and you wake on the couch with your items kept. <strong>One life</strong> has no couch. Die once and the run is over.</p>
     <p class="fine">Headphones on. Older versions: <a href="maze.html">Last Hit 3D</a> and <a href="classic.html">Last Hit Classic</a>.</p>
   </div>
@@ -230,6 +254,12 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <div><dt>Time</dt><dd id="sTime">0:00</dd></div>
     </dl>
     <p class="fine" id="sBest"></p>
+    <form class="submit" id="submitForm" hidden>
+      <label for="playerName">Put your time on the leaderboard</label>
+      <div class="row"><input id="playerName" maxlength="16" autocomplete="nickname" placeholder="Your name" required><button class="pen-btn" id="submitBtn" type="submit"><span class="led"></span>Submit</button></div>
+      <p class="fine" id="submitMsg" role="status"></p>
+    </form>
+    <ol class="board" id="boardScore" hidden></ol>
     <button class="pen-btn" id="againBtn" type="button"><span class="led"></span>Back to the party</button>
   </div>
 </section>
@@ -499,6 +529,65 @@ const F = {
   sideTable() { const g = new THREE.Group(); B(.9, .04, .4, MAT.woodMid, 0, .8, 0, g); legs4(g, .9, .4, .78, MAT.woodDark, .02); return g; },
   crib() { const g = new THREE.Group(); B(1.2, .05, .65, MAT.white, 0, .45, 0, g); for (let x = -.58; x <= .58; x += .08) for (const z of [-.31, .31]) C(.01, .01, .55, MAT.white, x, .72, z, g, 4); return g; }
 };
+
+/* ================= online leaderboard (Supabase) ================= */
+// Paste the project's URL and anon (public) key here. Row level security in supabase/schema.sql
+// only lets the browser read scores and add new ones.
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const boardOn = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+async function sbFetch(path, opts = {}) {
+  const r = await fetch(`${SUPABASE_URL}/rest/v1/${path}`, { ...opts, headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', ...(opts.headers || {}) } });
+  const text = await r.text();
+  if (!r.ok) throw new Error(text || r.statusText);
+  return text ? JSON.parse(text) : null;
+}
+const fmtTime = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
+const topScores = mode => sbFetch(`scores?select=id,name,time_sec,pulls,deaths&mode=eq.${mode}&order=time_sec.asc,created_at.asc&limit=10`);
+function renderBoard(el, rows, mine) {
+  el.replaceChildren();
+  if (!rows.length) { const li = document.createElement('li'), sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = 'No escapes yet. Be the first.'; li.append(sp); li.style.display = 'block'; el.append(li); return; }
+  rows.forEach((r, i) => {
+    const li = document.createElement('li'); if (r.id === mine) li.className = 'me';
+    const rk = document.createElement('span'); rk.className = 'rk'; rk.textContent = i + 1;
+    const nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name;
+    const tm = document.createElement('span'); tm.className = 'tm'; tm.textContent = fmtTime(r.time_sec);
+    const sm = document.createElement('small'); sm.textContent = `${r.pulls} pulls · ${r.deaths} deaths`; tm.append(sm);
+    li.append(rk, nm, tm); el.append(li);
+  });
+}
+async function loadBoard(el, mode, mine = null) {
+  el.replaceChildren(Object.assign(document.createElement('li'), { innerHTML: '<span class="empty">Loading…</span>' }));
+  try { renderBoard(el, await topScores(mode), mine); }
+  catch (e) { el.replaceChildren(Object.assign(document.createElement('li'), { innerHTML: '<span class="empty">Couldn\'t reach the leaderboard. Check your connection and try again.</span>' })); }
+}
+if (boardOn) {
+  $('titleBoard').hidden = false;
+  loadBoard($('boardTitle'), 'normal');
+  $('titleTabs').addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    for (const x of $('titleTabs').children) x.classList.toggle('on', x === b);
+    loadBoard($('boardTitle'), b.dataset.mode);
+  });
+}
+let lastRun = null;
+$('submitForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const name = $('playerName').value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 16);
+  if (!name) { $('submitMsg').textContent = 'Type a name first.'; return; }
+  if (!lastRun || lastRun.sent) return;
+  try { localStorage.setItem('lasthit.name', name); } catch (err) {}
+  $('submitBtn').disabled = true; $('submitMsg').textContent = 'Sending…';
+  try {
+    const rows = await sbFetch('scores', { method: 'POST', headers: { Prefer: 'return=representation' }, body: JSON.stringify({ name, mode: lastRun.mode, time_sec: lastRun.time, pulls: lastRun.pulls, deaths: lastRun.deaths, peak: lastRun.peak }) });
+    lastRun.sent = true;
+    $('submitMsg').textContent = 'Your time is on the board.';
+    loadBoard($('boardScore'), lastRun.mode, rows && rows[0] && rows[0].id);
+  } catch (err) {
+    $('submitBtn').disabled = false;
+    $('submitMsg').textContent = /time_sec/.test(err.message) ? 'That run was too short to count.' : "Couldn't send your time. Check your connection and try again.";
+  }
+});
 
 /* ================= house data ================= */
 const ROOM_DEFS = [
@@ -1074,6 +1163,7 @@ let locked = false, hadLock = false;
 function lockPointer() { if (isTouch || padActive) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; if (locked) hadLock = true; else if (state === 'playing' && hadLock) pause(); });
 addEventListener('keydown', e => {
+  if (e.target instanceof HTMLInputElement) return;
   const k = e.key.toLowerCase();
   if (state === 'playing' && (k === ' ' || k.startsWith('arrow'))) e.preventDefault();
   if (keyMap[k]) input[keyMap[k]] = 1;
@@ -1761,6 +1851,12 @@ function showScore() {
   try { localStorage.setItem(bestKey, JSON.stringify(best)); } catch (e) {}
   const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
   $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
+  if (boardOn) {
+    lastRun = { mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
+    let saved = ''; try { saved = localStorage.getItem('lasthit.name') || ''; } catch (e) {}
+    $('playerName').value = saved; $('submitBtn').disabled = false; $('submitMsg').textContent = '';
+    $('submitForm').hidden = false; $('boardScore').hidden = false; loadBoard($('boardScore'), G.mode);
+  }
   $('score').hidden = false; msgEl.classList.remove('show');
 }
 
