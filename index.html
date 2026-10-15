@@ -253,7 +253,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     </dl>
     <ul class="rules">
       <li>It's blind. It hunts by <strong>smell and sound</strong>. Every hit leaves a cloud it can follow. Running, slamming doors and your ringing phone bring it running.</li>
-      <li>Hold your breath and you make no sound at all, until you run out of air.</li>
+      <li>Hold your breath when it's in the room. After a couple of silent seconds it loses you and leaves. Run out of air and you'll cough.</li>
       <li>Past <strong>60% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
       <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
@@ -264,14 +264,12 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <div class="modes">
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
-      <button class="pen-btn hard" id="dailyBtn" type="button" disabled><span class="led"></span>Daily house</button>
     </div>
     <section class="board-wrap" id="titleBoard" hidden>
-      <div class="board-head"><p class="eyebrow">Fastest escapes</p><div class="tabs" id="titleTabs"><button type="button" data-mode="normal" class="on">Normal</button><button type="button" data-mode="one">One life</button><button type="button" data-mode="daily">Today</button></div></div>
+      <div class="board-head"><p class="eyebrow">Fastest escapes</p><div class="tabs" id="titleTabs"><button type="button" data-mode="normal" class="on">Normal</button><button type="button" data-mode="one">One life</button></div></div>
       <ol class="board" id="boardTitle"></ol>
     </section>
-    <p class="fine"><strong>Daily house</strong> is the same house for everyone today, with its own leaderboard.</p>
-    <details class="more" id="achBox"><summary>Achievements <span id="achCount">0/9</span></summary><ul class="ach" id="achList"></ul></details>
+    <details class="more" id="achBox"><summary>Achievements <span id="achCount">0/8</span></summary><ul class="ach" id="achList"></ul></details>
     <p class="fine"><button class="link-btn" id="settingsBtn" type="button">Settings</button> · mouse sensitivity, volume, reduce motion</p>
     <p class="fine"><strong>Wake up</strong> is the normal game: die and you wake on the couch with your items kept. <strong>One life</strong> has no couch. Die once and the run is over.</p>
     <p class="fine">Headphones on. Older versions: <a href="maze.html">Last Hit 3D</a> and <a href="classic.html">Last Hit Classic</a>.</p>
@@ -1095,7 +1093,7 @@ const FURN = {
     for (let k = 0; k < 2; k++) onWall(r, () => {
       const g = new THREE.Group(); C(.12, .14, .03, MAT.metal, 0, .015, 0, g, 12); C(.012, .012, 1.45, MAT.metal, 0, .74, 0, g, 6);
       const sh = mk(new THREE.CylinderGeometry(.14, .22, .26, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide }), 0, 1.5, 0, g); sh.castShadow = false;
-      g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 9.5, dist: 10, kind: 'safe' };
+      g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 15, dist: 12, kind: 'safe' };
       return g;
     }, .4, .4);
     picture(r); picture(r);
@@ -1181,6 +1179,7 @@ function buildRoom(id, day = false, shifted = false) {
   }
   for (const text of node.notes) { const sp = randomFloor(r, .3, r.rand), m = noteMesh(); m.position.set(sp.x, .004, sp.z); m.rotation.z = r.rand() * TAU; r.group.add(m); r.notes.push({ x: sp.x, z: sp.z, text }); }
   for (const sn of node.snacks) { if (sn.eaten) continue; const sp = randomFloor(r, .3, r.rand), m = SNACK_MESH[sn.kind](); m.position.set(sp.x, 0, sp.z); m.rotation.y = r.rand() * TAU; r.group.add(m); r.snacks.push({ x: sp.x, z: sp.z, mesh: m, sn }); }
+  if (id === 'living' && !day) r.group.add(new THREE.AmbientLight(0xffdcb0, .3));
   if (day) { r.group.add(new THREE.AmbientLight(0xfff1dc, 1.4)); const hl = new THREE.HemisphereLight(0xf4f0ff, 0x4a3a2a, 1.2); r.group.add(hl); }
   scene.add(r.group);
   return r;
@@ -1565,7 +1564,6 @@ $('pauseSettings').addEventListener('click', () => openSettings('pause'));
 $('settingsBtn').addEventListener('click', () => openSettings('title'));
 $('startBtn').addEventListener('click', () => newRun('normal'));
 $('hardBtn').addEventListener('click', () => newRun('one'));
-$('dailyBtn').addEventListener('click', () => newRun('normal', { daily: todayUTC() }));
 $('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal', G && G.daily ? { daily: todayUTC() } : {}));
 $('overAgain').addEventListener('click', () => newRun('one'));
 $('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; refreshTitle(); });
@@ -1811,7 +1809,6 @@ const ACH = [
   ['untouched', 'Untouchable', 'Escape without getting caught.'],
   ['cooked', 'Fully cooked', 'Escape while over 90% high.'],
   ['onelife', 'No second chances', 'Escape in One life mode.'],
-  ['daily', 'Daily visitor', 'Escape the daily house.'],
   ['bookworm', 'Bookworm', 'Read every note in the house.'],
   ['snacks', 'Munchies', 'Eat five snacks in one run.'],
   ['decoy', 'Ventriloquist', 'Distract it with three thrown bottles in one run.'],
@@ -2120,10 +2117,15 @@ function updateCreature(dt) {
   }
   // in this room
   CR.grace = Math.max(0, (CR.grace || 0) - dt);
+  // hold your breath and it loses you: after a couple of silent seconds it gives up and leaves
+  if (L.holding && CR.state !== 'lunge' && CR.state !== 'leave') {
+    CR.calm = (CR.calm || 0) + dt;
+    if (CR.calm > (L.hidden ? 1.2 : 2)) { CR.calm = 0; CR.chase = false; CR.cloud = null; CR.targetRoom = null; startLeave(true); if (CR.state === 'leave') say('"It lost me."', 2.2, true); }
+  } else if (!L.holding) CR.calm = 0;
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
   if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
-  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 20 && !CR.chase) startLeave(); }
+  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 12 && !CR.chase) startLeave(); }
   switch (CR.state) {
     case 'wander':
       speed = .7;
@@ -2151,7 +2153,7 @@ function updateCreature(dt) {
       if (CR.lungeT <= 0) { CR.state = 'sniff'; CR.sniffT = 1.4; }
       break;
     case 'leave': {
-      speed = 2.2; const dr = CR.leaveDoor;
+      speed = 2.6; const dr = CR.leaveDoor;
       if (!dr || !cur.doors.includes(dr)) { CR.state = 'wander'; break; }
       tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45; CR.leaveT = (CR.leaveT || 0) + dt;
       if (Math.hypot(tx - CR.x, tz - CR.z) < .35 || CR.leaveT > 6) {
@@ -2172,18 +2174,18 @@ function updateCreature(dt) {
   CR.moving = clamp(mv / (dt * 2), 0, 1);
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
   CR.stepAcc += mv;
-  if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .4 : .25); if (d < 4 && Math.random() < .3) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .14); }
-  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && L.holding) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .9 : .6); if (d < 6 && Math.random() < .4) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .2); }
+  if (CR.grace <= 0 && !CR.visiting && !(L.holding && CR.state !== 'lunge') && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   if (L.hidden && d < 3) unlock('hideseek');
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
   CR.sniffing = sniffing;
 }
 function startLunge() { CR.state = 'lunge'; CR.lungeT = .55; const d = Math.hypot(P.x - CR.x, P.z - CR.z) || 1; CR.ldx = (P.x - CR.x) / d; CR.ldz = (P.z - CR.z) / d; sfx.growl(crWhere(), .45); }
-function startLeave() {
+function startLeave(away = false) {
   let dr = null;
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
-  if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); dr = opts.length ? pick(opts) : null; }
+  if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); if (away) opts.sort((a, b) => Math.hypot(b.x - P.x, b.z - P.z) - Math.hypot(a.x - P.x, a.z - P.z)); dr = opts.length ? (away ? opts[0] : pick(opts)) : null; }
   if (!dr) { CR.idleT = 0; CR.visiting = false; return; }
   CR.state = 'leave'; CR.leaveDoor = dr; CR.idleT = 0; CR.leaveT = 0; CR.chase = false;
 }
@@ -2468,7 +2470,8 @@ function tick(dt) {
 }
 requestAnimationFrame(frame);
 ready = true;
-const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false; $('dailyBtn').disabled = false;
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
+const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
 </html>
