@@ -57,6 +57,37 @@ html,body{height:100%;margin:0;background:var(--void);color:var(--ash);overflow:
 #prompt kbd{display:inline-block;min-width:1.5em;margin-right:.5em;padding:0 .3em;border:1px solid rgba(207,213,200,.6);border-radius:3px;text-align:center;font-family:inherit}
 #roomName{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);left:50%;transform:translateX(-50%);font-family:var(--f-hud);font-size:24px;letter-spacing:.32em;text-transform:uppercase;color:var(--ash);opacity:0;transition:opacity .8s;pointer-events:none;white-space:nowrap;text-shadow:0 0 8px #000}
 #roomName.show{opacity:.85}
+#roomName.glitch{animation:roomglitch .9s steps(9) 1}
+@keyframes roomglitch{0%,20%,40%{transform:translateX(-50%) skewX(18deg);color:var(--blood)}10%,30%{transform:translateX(-48%);opacity:.2}60%{transform:translateX(-52%) skewX(-10deg)}100%{transform:translateX(-50%)}}
+#inv{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;gap:8px;pointer-events:none}
+body.touch #inv{bottom:auto;top:calc(env(safe-area-inset-top,0px) + 132px);pointer-events:auto}
+.inv{display:flex;align-items:center;gap:6px;padding:5px 9px 5px 7px;border-radius:8px;border:1px solid rgba(207,213,200,.22);background:rgba(4,5,4,.55);color:var(--ash);font-family:var(--f-hud);font-size:20px;line-height:1;pointer-events:auto;cursor:pointer}
+.inv svg{width:22px;height:22px;display:block}
+.inv b{font-weight:400;min-width:1ch;font-variant-numeric:tabular-nums}
+.inv kbd{font-family:inherit;font-size:15px;color:var(--smoke);border:1px solid rgba(207,213,200,.3);border-radius:3px;padding:0 4px}
+body.touch .inv kbd{display:none}
+.inv.empty{opacity:.4}
+.inv.on{border-color:#cfe0ff;box-shadow:0 0 14px rgba(207,224,255,.4)}
+#hideView{position:fixed;inset:0;pointer-events:none}
+#hideView.wardrobe{background:repeating-linear-gradient(90deg,#000 0 7.5vw,rgba(0,0,0,.25) 7.5vw 8.5vw),radial-gradient(ellipse at center,transparent 30%,#000 85%)}
+#hideView.bed{background:linear-gradient(#000 0 46%,rgba(0,0,0,.6) 52%,transparent 64%),radial-gradient(ellipse at 50% 80%,transparent 35%,#000 90%)}
+#hideView.tub{background:radial-gradient(ellipse 70% 55% at 50% 40%,transparent 45%,rgba(0,0,0,.92) 75%),linear-gradient(transparent 70%,#000 92%)}
+#toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 56px);left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(4,5,4,.85);border:1px solid rgba(134,227,109,.55);font-family:var(--f-hud);font-size:19px;letter-spacing:.1em;text-transform:uppercase;color:var(--leaf);pointer-events:none;opacity:0;transition:opacity .4s;white-space:nowrap}
+#toast.show{opacity:1}
+.ach{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:6px;margin:10px 0 0;padding:0;list-style:none}
+.ach li{display:grid;gap:1px;padding:7px 10px;border-radius:6px;border:1px solid rgba(207,213,200,.14);color:var(--smoke);font-size:.86rem;line-height:1.35}
+.ach li b{font-family:var(--f-hud);font-size:18px;font-weight:400;letter-spacing:.08em;text-transform:uppercase}
+.ach li.got{border-color:rgba(134,227,109,.45);color:var(--ash)}
+.ach li.got b{color:var(--leaf)}
+details.more summary{cursor:pointer;font-family:var(--f-hud);font-size:19px;letter-spacing:.14em;text-transform:uppercase;color:var(--smoke)}
+details.more summary:focus-visible{outline:2px solid var(--leaf);outline-offset:3px}
+.setrow{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 14px;align-items:center}
+.setrow label{font-family:var(--f-hud);font-size:19px;letter-spacing:.1em;text-transform:uppercase;color:var(--ash)}
+.setrow output{font-family:var(--f-hud);font-size:19px;color:var(--smoke);font-variant-numeric:tabular-nums}
+.setrow input[type=range]{grid-column:1/-1;width:100%;accent-color:var(--leaf)}
+.setrow small{grid-column:1/-1;color:var(--smoke);font-size:.84rem}
+.check{display:flex;gap:10px;align-items:flex-start;font-size:.95rem}
+.check input{width:20px;height:20px;accent-color:var(--leaf);margin-top:2px}
 
 #pull{position:fixed;left:50%;top:50%;width:38px;height:38px;margin:-19px 0 0 -19px;border-radius:50%;pointer-events:none;
   background:conic-gradient(var(--pc,rgba(207,213,200,.8)) calc(var(--k,0)*1turn),transparent 0);
@@ -166,6 +197,13 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 <div id="roomName"></div>
 <div id="prompt" hidden></div>
 <div id="pull" hidden></div>
+<div id="hideView" hidden></div>
+<div id="inv" hidden>
+  <button class="inv empty" id="invFood" type="button" aria-label="Eat a snack"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5c6-3 12-3 18 0L12 22z" fill="#e8c050"/><path d="M3 5c6-3 12-3 18 0l-1.2 2.4C14.6 5 9.4 5 4.2 7.4z" fill="#c89040"/><circle cx="10" cy="10" r="1.7" fill="#b01818"/><circle cx="14" cy="13" r="1.5" fill="#b01818"/><circle cx="11.5" cy="16" r="1.2" fill="#b01818"/></svg><b id="foodCount">0</b><kbd>Q</kbd></button>
+  <button class="inv empty" id="invDecoy" type="button" aria-label="Throw a bottle"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 2h4v4l2 3v12a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9l2-3z" fill="#2f6a34"/><rect x="9.5" y="11" width="5" height="5" rx=".5" fill="#d9d2bf"/><rect x="10" y="2" width="4" height="1.6" fill="#c8a040"/></svg><b id="decoyCount">0</b><kbd>G</kbd></button>
+  <button class="inv" id="invPhone" type="button" aria-label="Phone torch" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" fill="#1a1c20" stroke="#8fb4ff" stroke-width="1.2"/><rect x="8" y="5" width="8" height="12" fill="#8fb4ff" opacity=".55"/></svg><b id="battery">100%</b><kbd>T</kbd></button>
+</div>
+<div id="toast" role="status"></div>
 <div id="msg" role="status" aria-live="polite"></div>
 <div id="note" hidden></div>
 <div id="whisper" aria-hidden="true"></div>
@@ -190,6 +228,10 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <dt>Hold R</dt><dd>Run. It hears you running.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
       <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
+      <dt>Q</dt><dd>Eat a snack you picked up</dd>
+      <dt>G</dt><dd>Throw a bottle or can. It runs to the noise.</dd>
+      <dt>T</dt><dd>Phone torch, once you've found your phone</dd>
+      <dt>E</dt><dd>Also hides you in wardrobes, under beds and in bathtubs</dd>
     </dl>
     <dl class="controls" id="controlsPad" hidden>
       <dt>Left stick</dt><dd>Move. Click it in to run.</dd>
@@ -198,6 +240,9 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <dt>RT / R2</dt><dd>Hit the pen</dd>
       <dt>LT / L2</dt><dd>Hold your breath</dd>
       <dt>LB / L1</dt><dd>Run</dd>
+      <dt>Y / Triangle</dt><dd>Eat a snack</dd>
+      <dt>X / Square</dt><dd>Throw a bottle</dd>
+      <dt>RB / R1</dt><dd>Phone torch</dd>
       <dt>Start</dt><dd>Pause</dd>
     </dl>
     <dl class="controls" id="controlsTouch" hidden>
@@ -212,17 +257,22 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>Past <strong>60% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
       <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
-      <li>Snacks are lying around the party. Eating one brings your high down, but chips and soda are loud.</li>
+      <li>Pick up snacks and eat them when you need to. Eating brings your high down, but chips and soda are loud.</li>
+      <li>Empty bottles and cans make good decoys. Hiding spots make good hiding spots.</li>
       <li>Every item you find is a save point. Hit 100% and you green out.</li>
     </ul>
     <div class="modes">
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
+      <button class="pen-btn hard" id="dailyBtn" type="button" disabled><span class="led"></span>Daily house</button>
     </div>
     <section class="board-wrap" id="titleBoard" hidden>
-      <div class="board-head"><p class="eyebrow">Fastest escapes</p><div class="tabs" id="titleTabs"><button type="button" data-mode="normal" class="on">Normal</button><button type="button" data-mode="one">One life</button></div></div>
+      <div class="board-head"><p class="eyebrow">Fastest escapes</p><div class="tabs" id="titleTabs"><button type="button" data-mode="normal" class="on">Normal</button><button type="button" data-mode="one">One life</button><button type="button" data-mode="daily">Today</button></div></div>
       <ol class="board" id="boardTitle"></ol>
     </section>
+    <p class="fine"><strong>Daily house</strong> is the same house for everyone today, with its own leaderboard.</p>
+    <details class="more" id="achBox"><summary>Achievements <span id="achCount">0/9</span></summary><ul class="ach" id="achList"></ul></details>
+    <p class="fine"><button class="link-btn" id="settingsBtn" type="button">Settings</button> · mouse sensitivity, volume, reduce motion</p>
     <p class="fine"><strong>Wake up</strong> is the normal game: die and you wake on the couch with your items kept. <strong>One life</strong> has no couch. Die once and the run is over.</p>
     <p class="fine">Headphones on. Older versions: <a href="maze.html">Last Hit 3D</a> and <a href="classic.html">Last Hit Classic</a>.</p>
   </div>
@@ -233,7 +283,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <p class="eyebrow">Paused</p>
     <h2>Hold still.</h2>
     <p class="tag">It's still in the house.</p>
-    <div class="modes"><button class="pen-btn" id="resumeBtn" type="button"><span class="led"></span>Resume</button><button class="pen-btn hard" id="quitBtn" type="button"><span class="led"></span>Quit to title</button></div>
+    <div class="modes"><button class="pen-btn" id="resumeBtn" type="button"><span class="led"></span>Resume</button><button class="pen-btn hard" id="quitBtn" type="button"><span class="led"></span>Quit to title</button><button class="pen-btn hard" id="pauseSettings" type="button"><span class="led"></span>Settings</button></div>
     <p class="fine">Quitting ends this run. Items you found aren't kept.</p>
   </div>
 </section>
@@ -261,6 +311,17 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       </dl>
       <div class="modes" style="margin-top:20px"><button class="pen-btn" id="profBack" type="button"><span class="led"></span>Back</button><button class="pen-btn hard" id="signOut" type="button"><span class="led"></span>Sign out</button></div>
     </div>
+  </div>
+</section>
+
+<section class="overlay" id="settings" hidden>
+  <div class="card">
+    <p class="eyebrow">Settings</p>
+    <h2>Comfort</h2>
+    <div class="setrow"><label for="setSens">Mouse sensitivity</label><output id="setSensOut">1.0×</output><input type="range" id="setSens" min="0.3" max="3" step="0.1" value="1"></div>
+    <div class="setrow"><label for="setVol">Volume</label><output id="setVolOut">100%</output><input type="range" id="setVol" min="0" max="1" step="0.05" value="1"></div>
+    <label class="check"><input type="checkbox" id="setMotion"><span><strong>Reduce motion.</strong> Tones down the swaying, screen warping, double vision, trails and camera shake. The high still changes colours and sound.</span></label>
+    <button class="pen-btn" id="settingsDone" type="button"><span class="led"></span>Done</button>
   </div>
 </section>
 
@@ -294,6 +355,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <div><dt>Time</dt><dd id="sTime">0:00</dd></div>
     </dl>
     <p class="fine" id="sBest"></p>
+    <p class="fine" id="sAch"></p>
     <div class="submit" id="submitBox" hidden>
       <p class="fine" id="submitMsg" role="status"></p>
       <button class="pen-btn" id="submitBtn" type="button" hidden><span class="led"></span>Save to leaderboard</button>
@@ -339,7 +401,7 @@ camera.add(lamp);
 const VERT = `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`;
 const POST = `
 uniform sampler2D tScene; uniform sampler2D tPrev;
-uniform float uTime, uHigh, uGo, uTrail, uStatic, uRed, uScare, uDizzy, uHold;
+uniform float uTime, uHigh, uGo, uTrail, uStatic, uRed, uScare, uDizzy, uHold, uMotion, uFlash;
 uniform vec2 uRes;
 varying vec2 vUv;
 float rand(vec2 co){ return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453); }
@@ -349,12 +411,12 @@ void main(){
   float h = uHigh, dz = uDizzy;
   float asp = uRes.x / uRes.y;
   vec2 c = vUv - 0.5; c.x *= asp;
-  float rot = sin(uTime * 0.4) * h * h * 0.06 + uGo * uGo * 2.5 + sin(uTime * 0.7) * dz * 0.05;
+  float rot = (sin(uTime * 0.4) * h * h * 0.06 + uGo * uGo * 2.5 + sin(uTime * 0.7) * dz * 0.05) * uMotion;
   c = mat2(cos(rot), -sin(rot), sin(rot), cos(rot)) * c;
-  c *= 1.0 - (sin(uTime * 1.6) * 0.04 * max(0.0, h - 0.35) + uGo * 0.2 + sin(uTime * 1.1) * dz * 0.03);
+  c *= 1.0 - (sin(uTime * 1.6) * 0.04 * max(0.0, h - 0.35) + uGo * 0.2 + sin(uTime * 1.1) * dz * 0.03) * uMotion;
   c.x /= asp;
   vec2 uv = c + 0.5;
-  float amp = max(0.0, h - 0.12) * 0.02 + uGo * 0.03 + dz * 0.014;
+  float amp = (max(0.0, h - 0.12) * 0.02 + uGo * 0.03 + dz * 0.014) * uMotion;
   uv.x += sin(uv.y * 26.0 + uTime * 2.2) * amp + sin(uv.y * 8.0 - uTime * 0.9) * amp * 0.6;
   uv.y += sin(uv.x * 18.0 + uTime * 1.7) * amp * 0.35;
   uv = clamp(uv, 0.001, 0.999);
@@ -366,7 +428,7 @@ void main(){
     col = mix(col, b / 6.0, clamp(dz * 1.2, 0.0, 0.85));
   }
   float dv = clamp((h - 0.35) / 0.45, 0.0, 1.0);
-  vec2 off = vec2(sin(uTime * 0.9), cos(uTime * 0.7)) * h * 0.035;
+  vec2 off = vec2(sin(uTime * 0.9), cos(uTime * 0.7)) * h * 0.035 * uMotion;
   col += samp(clamp(uv + off, 0.001, 0.999), ca) * dv * 0.45;
   if (h > 0.8) col = mix(col, max(col, samp(vec2(1.0 - uv.x, uv.y), ca)), (h - 0.8) * 3.0);
   float hue = h > 0.15 ? sin(uTime * 0.27) * (h - 0.15) * 3.5 : 0.0;
@@ -374,7 +436,8 @@ void main(){
   float l = dot(col, vec3(0.299, 0.587, 0.114));
   col = max(mix(vec3(l), col, 1.0 + h * 1.4), vec3(0.0));
   vec3 prev = texture2D(tPrev, vUv).rgb;
-  col = max(col, prev * uTrail);
+  col = max(col, prev * uTrail * uMotion);
+  col += vec3(1.0, 0.96, 0.85) * uFlash * 0.05;
   float vr = length((vUv - 0.5) * vec2(asp, 1.0));
   float v = smoothstep(0.95, 0.3 - uHold * 0.15, vr * (0.9 + uHold * 0.35));
   col = mix(vec3(0.35, 0.0, 0.03) * uRed, col, v);
@@ -387,7 +450,7 @@ void main(){
   gl_FragColor = vec4(max(col, vec3(0.0)), 1.0);
 }`;
 const postMat = new THREE.ShaderMaterial({
-  uniforms: { tScene: { value: null }, tPrev: { value: null }, uTime: { value: 0 }, uHigh: { value: 0 }, uGo: { value: 0 }, uTrail: { value: 0 }, uStatic: { value: 0 }, uRed: { value: 0 }, uScare: { value: 0 }, uDizzy: { value: 0 }, uHold: { value: 0 }, uRes: { value: new THREE.Vector2(2, 2) } },
+  uniforms: { tScene: { value: null }, tPrev: { value: null }, uTime: { value: 0 }, uHigh: { value: 0 }, uGo: { value: 0 }, uTrail: { value: 0 }, uStatic: { value: 0 }, uRed: { value: 0 }, uScare: { value: 0 }, uDizzy: { value: 0 }, uHold: { value: 0 }, uMotion: { value: 1 }, uFlash: { value: 0 }, uRes: { value: new THREE.Vector2(2, 2) } },
   vertexShader: VERT, fragmentShader: POST, depthTest: false, depthWrite: false
 });
 const copyMat = new THREE.ShaderMaterial({
@@ -576,6 +639,7 @@ const SUPABASE_URL = 'https://syuorzolqqjkbkdyoeia.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5dW9yem9scXFqa2JrZHlvZWlhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTIwODE1MzUsImV4cCI6MjEwNzY1NzUzNX0.G-wPnD8fp-QXQR0ivOdl2k1ks6ZlBBko4addC3_cGJE';
 const boardOn = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
 let supa = null, me = null; // me = { id, username }
+const todayUTC = () => new Date().toISOString().slice(0, 10);
 const fmtTime = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
 const emptyRow = text => { const li = document.createElement('li'), sp = document.createElement('span'); sp.className = 'empty'; sp.textContent = text; li.style.display = 'block'; li.append(sp); return li; };
 function renderBoard(el, rows) {
@@ -593,7 +657,9 @@ function renderBoard(el, rows) {
 async function loadBoard(el, mode) {
   if (!supa) return;
   el.replaceChildren(emptyRow('Loading…'));
-  const { data, error } = await supa.from('leaderboard').select('id,user_id,username,time_sec,pulls,deaths').eq('mode', mode).order('time_sec').order('created_at').limit(10);
+  let q = supa.from('leaderboard').select('id,user_id,username,time_sec,pulls,deaths');
+  q = mode === 'daily' ? q.eq('mode', 'normal').eq('daily', todayUTC()) : q.eq('mode', mode).is('daily', null);
+  const { data, error } = await q.order('time_sec').order('created_at').limit(10);
   if (error) el.replaceChildren(emptyRow("Couldn't reach the leaderboard. Check your connection and try again."));
   else renderBoard(el, data);
 }
@@ -694,7 +760,7 @@ async function saveRun() {
     return;
   }
   lastRun.sent = true; msg.textContent = `Saved to the leaderboard as ${me.username}.`;
-  loadBoard($('boardScore'), lastRun.mode);
+  loadBoard($('boardScore'), lastRun.board);
 }
 $('submitBtn').addEventListener('click', () => { if (!me) openAccount(); else saveRun(); });
 $('titleTabs').addEventListener('click', e => {
@@ -755,28 +821,29 @@ const NOTES = [
 const ITEM_NAMES = { phone: 'phone', keys: 'keys', jacket: 'jacket' };
 
 let NODES = {}, ORIG_ADJ = {}, adj = {};
-function initHouse() {
+function initHouse(seed = null) {
+  const R = seed == null ? Math.random : rng(seed), pk = a => a[R() * a.length | 0];
   NODES = {};
   for (const d of [...ROOM_DEFS, ...EXTRA_DEFS]) NODES[d.id] = { ...d, items: [], notes: [], snacks: [], enteredHigh: false, entryFrom: null, floor: d.floor ?? 0, extra: d.id.startsWith('x_') };
   ORIG_ADJ = {}; for (const d of ROOM_DEFS) ORIG_ADJ[d.id] = [];
   for (const [a, b] of EDGES) { ORIG_ADJ[a].push(b); ORIG_ADJ[b].push(a); }
   adj = cloneAdj(ORIG_ADJ);
-  const lit = shuffled(ROOM_DEFS.filter(d => d.light && d.id !== 'living').map(d => d.id));
-  const dark = shuffled(ROOM_DEFS.filter(d => !d.light && !['living', 'entry', 'hall', 'landing'].includes(d.id)).map(d => d.id));
-  const anyRoom = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id));
+  const lit = shuffled(ROOM_DEFS.filter(d => d.light && d.id !== 'living').map(d => d.id), R);
+  const dark = shuffled(ROOM_DEFS.filter(d => !d.light && !['living', 'entry', 'hall', 'landing'].includes(d.id)).map(d => d.id), R);
+  const anyRoom = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id), R);
   // keys and jacket usually sit by a light and the phone in the dark, but one item each run can be anywhere
-  const wild = pick(['phone', 'keys', 'jacket']), used = new Set();
+  const wild = pk(['phone', 'keys', 'jacket']), used = new Set();
   const take = list => { const id = list.find(x => !used.has(x)); used.add(id); return id; };
   for (const kind of ['keys', 'jacket', 'phone']) {
     const id = kind === wild ? take(anyRoom) : kind === 'phone' ? take(dark) : take(lit);
     NODES[id].items.push({ kind, nearLight: !!NODES[id].light });
   }
-  const noteRooms = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id));
+  const noteRooms = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id), R);
   NOTES.forEach((n, i) => NODES[noteRooms[i]].notes.push(n));
   for (const d of ROOM_DEFS) {
     if (d.id === 'living') continue;
-    const n = d.type === 'kitchen' ? 3 : PARTY.has(d.type) || d.type === 'rec' ? 1 + (Math.random() < .5) : Math.random() < .45 ? 1 : 0;
-    for (let i = 0; i < n; i++) NODES[d.id].snacks.push({ kind: pick(['chips', 'chips', 'candy', 'soda', 'soda', 'pizza']), eaten: false });
+    const n = d.type === 'kitchen' ? 3 : PARTY.has(d.type) || d.type === 'rec' ? 1 + (R() < .5) : R() < .45 ? 1 : 0;
+    for (let i = 0; i < n; i++) NODES[d.id].snacks.push({ kind: pk(['chips', 'chips', 'candy', 'soda', 'soda', 'pizza']), eaten: false });
   }
 }
 const cloneAdj = a => { const o = {}; for (const k in a) o[k] = a[k].slice(); return o; };
@@ -960,7 +1027,7 @@ function buildDoor(r, dr) {
     dr.stairs = diff;
   } else {
     const piv = new THREE.Group(); piv.position.set(-.45, 0, .03); g.add(piv);
-    B(.92, 2.12, .045, MAT.door, .46, 1.06, 0, piv); S(.03, MAT.brass, .82, 1.0, .045, piv);
+    B(.92, 2.12, .045, MAT.door, .46, 1.06, 0, piv); S(.03, MAT.brass, r.shifted ? .1 : .82, 1.0, .045, piv);
     dr.panel = piv;
   }
 }
@@ -970,11 +1037,15 @@ function debris(r, n) {
     const sp = randomFloor(r, .1), k = r.rand();
     let o;
     if (k < .45) { o = C(.04, .03, .11, MAT.red, sp.x, .055, sp.z, r.group, 8); if (r.rand() < .5) { o.rotation.z = Math.PI / 2; o.position.y = .04; } }
-    else if (k < .7) { o = C(.035, .035, .26, MAT.greenGlass, sp.x, .035, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; }
-    else if (k < .9) { o = C(.033, .033, .12, MAT.can, sp.x, .033, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; }
+    else if (k < .7) { o = C(.035, .035, .26, MAT.greenGlass, sp.x, .035, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'bottle' }); }
+    else if (k < .9) { o = C(.033, .033, .12, MAT.can, sp.x, .033, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'can' }); }
     else o = B(.4, .04, .4, MAT.card, sp.x, .02, sp.z, r.group);
     o.rotation.y = r.rand() * TAU;
   }
+}
+const HIDES = { wardrobe: { y: 1.5, label: 'Hide in the wardrobe' }, bed: { y: .32, label: 'Hide under the bed' }, tub: { y: .55, label: 'Hide in the bathtub' } };
+function addHide(r, sp, kind, depth) {
+  r.hides.push({ kind, x: sp.x, z: sp.z, nx: sp.nx, nz: sp.nz, out: { x: sp.x + sp.nx * (depth / 2 + .55), z: sp.z + sp.nz * (depth / 2 + .55) } });
 }
 function picture(r) {
   for (let i = 0; i < 6; i++) {
@@ -982,7 +1053,7 @@ function picture(r) {
     if (!free(r, rect, true)) continue;
     const p = wallPoint(r, wi, s, .02), g = new THREE.Group(); g.position.set(p.x, 1.6, p.z); g.rotation.y = p.rot;
     B(.48, .58, .03, MAT.woodDark, 0, 0, 0, g); const ph = mk(new THREE.PlaneGeometry(.38, .48), MAT.photo, 0, 0, .017, g); ph.castShadow = false;
-    g.rotation.z = (r.rand() - .5) * .12; r.group.add(g); return;
+    g.rotation.z = (r.rand() - .5) * .12 + (r.shifted ? Math.PI : 0); r.group.add(g); return;
   }
 }
 function addWindow(r, day) {
@@ -1020,6 +1091,13 @@ const FURN = {
     }
     onWall(r, () => F.tv(1.3), 1.6, .45);
     onWall(r, () => F.armchair(), 1.0, .95);
+    // the living room is the one place with working lamps, so you can see without the pen
+    for (let k = 0; k < 2; k++) onWall(r, () => {
+      const g = new THREE.Group(); C(.12, .14, .03, MAT.metal, 0, .015, 0, g, 12); C(.012, .012, 1.45, MAT.metal, 0, .74, 0, g, 6);
+      const sh = mk(new THREE.CylinderGeometry(.14, .22, .26, 14, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd9a0, side: THREE.DoubleSide }), 0, 1.5, 0, g); sh.castShadow = false;
+      g.userData.light = { pos: new THREE.Vector3(0, 1.45, .1), color: 0xffcf96, intensity: r.day ? 3 : 7, dist: 9, kind: 'safe' };
+      return g;
+    }, .4, .4);
     picture(r); picture(r);
   },
   fakeliving(r) {
@@ -1037,11 +1115,11 @@ const FURN = {
   kitchen(r) { onWall(r, () => F.counter(2.6), 2.6, .62); onWall(r, () => F.counter(1.8), 1.8, .62); onWall(r, () => F.fridge(), .8, .7); inMiddle(r, () => F.counter(1.6), 1.6, .62, 1.3); },
   laundry(r) { onWall(r, () => F.washer(), .62, .6); onWall(r, () => F.washer(), .62, .6); onWall(r, () => F.shelfUnit(r.rand), 1.2, .45); },
   garage(r) { inMiddle(r, () => F.car(), 4, 1.8, .9); onWall(r, () => F.workbench(r.node.light === 'lantern'), 1.8, .7); onWall(r, () => F.shelfUnit(r.rand), 1.2, .45); onWall(r, () => F.boxes(r.rand), .6, .6); },
-  bath(r) { onWall(r, () => F.tub(), 1.7, .78); onWall(r, () => F.toilet(), .45, .55); onWall(r, () => F.sink(), .55, .45); },
+  bath(r) { const tb = onWall(r, () => F.tub(), 1.7, .78); if (tb) addHide(r, tb, 'tub', .78); onWall(r, () => F.toilet(), .45, .55); onWall(r, () => F.sink(), .55, .45); },
   study(r) { onWall(r, () => F.desk(r.node.light === 'laptop'), 1.3, .65); onWall(r, () => F.bookshelf(r.rand), .9, .32); onWall(r, () => F.bookshelf(r.rand), .9, .32); inMiddle(r, () => F.chair(), .44, .44, .8); },
-  bedroom(r) { onWall(r, () => F.bed(), 1.7, 2.12); onWall(r, () => F.wardrobe(), 1.2, .6); onWall(r, () => F.nightstand(), .45, .4); picture(r); },
+  bedroom(r) { const bd = onWall(r, () => F.bed(), 1.7, 2.12); if (bd) addHide(r, bd, 'bed', 2.12); const wd = onWall(r, () => F.wardrobe(), 1.2, .6); if (wd) addHide(r, wd, 'wardrobe', .6); onWall(r, () => F.nightstand(), .45, .4); picture(r); },
   kids(r) {
-    onWall(r, () => F.kidBed(), 1.1, 1.72); onWall(r, () => F.bookshelf(r.rand), .9, .32);
+    const kb = onWall(r, () => F.kidBed(), 1.1, 1.72); if (kb) addHide(r, kb, 'bed', 1.72); onWall(r, () => F.bookshelf(r.rand), .9, .32);
     for (let i = 0; i < 8; i++) { const sp = randomFloor(r, .1); B(.1, .1, .1, MAT.toy[i % 4], sp.x, .05, sp.z, r.group).rotation.y = r.rand(); }
     const sp = randomFloor(r, .3); S(.14, MAT.woodMid, sp.x, .14, sp.z, r.group); S(.09, MAT.woodMid, sp.x, .33, sp.z, r.group);
     if (r.node.light === 'nightlight') {
@@ -1076,11 +1154,11 @@ const SNACK_MESH = {
 };
 function noteMesh() { const m = mk(new THREE.PlaneGeometry(.21, .28), MAT.paper, 0, .004, 0); m.rotation.x = -Math.PI / 2; m.castShadow = false; return m; }
 
-function buildRoom(id, day = false) {
+function buildRoom(id, day = false, shifted = false) {
   disposeRoom();
   const node = NODES[id];
   const nbs = (adj[id] || []).slice(); if (node.type === 'entry') nbs.push('outside');
-  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37), items: {}, notes: [], snacks: [], couch: null, day, flame: null };
+  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37), items: {}, notes: [], snacks: [], couch: null, day, flame: null, shifted, hides: [], throwables: [] };
   cur = r;
   layoutDoors(r, nbs);
   buildShell(r);
@@ -1192,7 +1270,7 @@ let AC = null, A = {};
 function initAudio() {
   if (AC) { AC.resume(); return; }
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; return; }
-  const master = AC.createGain(); master.gain.value = .9;
+  const master = AC.createGain(); master.gain.value = .9 * SET.vol;
   const limiter = AC.createDynamicsCompressor(); limiter.threshold.value = -10; limiter.ratio.value = 12; limiter.connect(AC.destination); master.connect(limiter);
   const delay = AC.createDelay(1), fb = AC.createGain(), wet = AC.createGain();
   delay.delayTime.value = .31; fb.gain.value = 0; wet.gain.value = 0;
@@ -1217,6 +1295,10 @@ function initAudio() {
   // your own breathing
   const pbp = AC.createBiquadFilter(); pbp.type = 'bandpass'; pbp.frequency.value = 900; pbp.Q.value = .9;
   const pg = AC.createGain(); pg.gain.value = 0; loopNoise().connect(pbp); pbp.connect(pg); pg.connect(master); A.pGain = pg;
+  // party music somewhere through the walls: low-passed hard and placed outside the room
+  const mlp = AC.createBiquadFilter(); mlp.type = 'lowpass'; mlp.frequency.value = 150; mlp.Q.value = 3;
+  const mg = AC.createGain(); mg.gain.value = 0; A.musicIn = mlp; A.musicGain = mg; A.musicPan = newPanner(); A.musicPan.refDistance = 4; A.musicPan.rolloffFactor = .6;
+  mlp.connect(mg); mg.connect(A.musicPan); A.musicPan.connect(master);
 }
 function loopNoise() { const s = AC.createBufferSource(); s.buffer = A.nb; s.loop = true; s.start(); return s; }
 function newPanner() { const p = AC.createPanner(); p.panningModel = 'HRTF'; p.distanceModel = 'inverse'; p.refDistance = 1.2; p.rolloffFactor = 1.1; p.maxDistance = 60; return p; }
@@ -1268,6 +1350,14 @@ const sfx = {
   ring(where) { for (let k = 0; k < 3; k++) for (let i = 0; i < 6; i++) tone({ f: i % 2 ? 1320 : 1760, dur: .07, type: 'square', g: .045, at: k * 1.3 + i * .08, where }); },
   gasp() { burst({ f: 1400, f2: 600, q: 1.2, dur: .7, g: .45, attack: .02 }); },
   beep(v) { tone({ f: 1480, dur: .06, g: .035 + v * .012 }); },
+  pocket() { burst({ type: 'bandpass', f: 1800, q: 2, dur: .12, g: .08 }); },
+  rustle() { for (let i = 0; i < 4; i++) burst({ type: 'bandpass', f: rnd(900, 2200), q: 1.5, dur: .18, g: .12, at: i * .09 }); },
+  whoosh() { burst({ type: 'bandpass', f: 600, f2: 2400, q: 1.5, dur: .3, g: .12, attack: .05 }); },
+  smash(where) { for (let i = 0; i < 6; i++) tone({ f: rnd(2500, 6000), dur: rnd(.05, .25), type: 'triangle', g: .14, at: i * .03, where }); burst({ type: 'highpass', f: 2500, dur: .5, g: .55, where }); burst({ type: 'lowpass', f: 400, dur: .15, g: .4, where }); },
+  click() { tone({ f: 2400, dur: .02, type: 'square', g: .03 }); },
+  buzz() { for (let i = 0; i < 3; i++) tone({ f: 165, dur: .28, type: 'square', g: .07, at: i * .45, attack: .01 }); },
+  shiftSting() { tone({ f: 330, f2: 60, dur: 1.4, type: 'sawtooth', g: .07, attack: .3 }); burst({ f: 3000, f2: 200, q: 4, dur: 1.2, g: .08, attack: .4 }); },
+  powerOn() { tone({ f: 60, dur: .6, type: 'square', g: .12 }); tone({ f: 120, dur: .6, type: 'sawtooth', g: .05 }); burst({ type: 'highpass', f: 4000, dur: .06, g: .3 }); burst({ type: 'highpass', f: 4000, dur: .06, g: .3, at: .15 }); },
   gaspSoft() { burst({ f: 1200, f2: 500, q: 1.2, dur: .5, g: .2, attack: .02 }); },
   crunch() { for (let i = 0; i < 6; i++) burst({ type: 'highpass', f: rnd(2500, 5000), dur: .05, g: .22, at: i * .11 + Math.random() * .04 }); },
   fizz() { tone({ f: 2400, dur: .04, type: 'square', g: .05 }); burst({ type: 'highpass', f: 6000, dur: .9, g: .1, at: .05, attack: .02 }); },
@@ -1293,6 +1383,9 @@ addEventListener('keydown', e => {
   if (keyMap[k]) input[keyMap[k]] = 1;
   if (k === 'r') input.run = true;
   if (k === 'e' && state === 'playing' && !e.repeat) input.use = true;
+  if (k === 'q' && state === 'playing' && !e.repeat) input.eat = true;
+  if (k === 'g' && state === 'playing' && !e.repeat) input.throw = true;
+  if (k === 't' && state === 'playing' && !e.repeat) input.torch = true;
   if (k === 'shift' || k === 'c') input.brKey = true;
   if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
   if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
@@ -1319,14 +1412,14 @@ cvs.addEventListener('mousedown', e => {
 addEventListener('mouseup', e => { if (e.button === 0) { input.penMouse = false; releaseCheck(); } if (e.button === 2) input.brMouse = false; });
 addEventListener('mousemove', e => {
   if (state !== 'playing' || isTouch) return;
-  const k = .0022 * (L && L.invertT > 0 ? -1 : 1);
+  const k = .0022 * SET.sens * (L && L.invertT > 0 ? -1 : 1);
   P.yaw -= e.movementX * k; P.pitch = clamp(P.pitch - e.movementY * k, -1.3, 1.3);
 });
 let lookId = null, lookX = 0, lookY = 0;
 cvs.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch' || state !== 'playing') return; lookId = e.pointerId; lookX = e.clientX; lookY = e.clientY; });
 cvs.addEventListener('pointermove', e => {
   if (e.pointerId !== lookId) return;
-  const k = .006 * (L && L.invertT > 0 ? -1 : 1);
+  const k = .006 * SET.sens * (L && L.invertT > 0 ? -1 : 1);
   P.yaw -= (e.clientX - lookX) * k; P.pitch = clamp(P.pitch - (e.clientY - lookY) * k, -1.3, 1.3);
   lookX = e.clientX; lookY = e.clientY;
 });
@@ -1360,7 +1453,12 @@ const promptEl = $('prompt');
 const hudEl = $('hud'), msgEl = $('msg'), whispEl = $('whisper'), pullEl = $('pull'), noteEl = $('note'), fadeEl = $('fade'), roomEl = $('roomName');
 let msgTimer = 0, roomTimer = 0;
 function say(text, dur = 2.8, sub = false) { msgEl.textContent = isTouch ? text.replace(/SPACE/g, 'HIT') : text; msgEl.classList.toggle('sub', sub); msgEl.classList.add('show'); msgTimer = dur; }
-function showRoom(name) { roomEl.textContent = name; roomEl.classList.add('show'); roomTimer = 2.4; }
+function showRoom(name) { roomEl.classList.remove('glitch'); roomEl.textContent = name; roomEl.classList.add('show'); roomTimer = 2.4; }
+function showRoomShift(expected, actual) {
+  roomEl.classList.remove('glitch'); void roomEl.offsetWidth;
+  roomEl.textContent = expected; roomEl.classList.add('show', 'glitch'); roomTimer = 3.2;
+  setTimeout(() => { roomEl.textContent = actual; }, 650);
+}
 const WHISPERS = ['behind you', "it's not real", 'one more hit', 'it smells the smoke', "don't turn around", 'you have been here before', 'the walls are breathing', 'it is in the walls', 'stay', 'it knows your name', 'nobody left'];
 function whisperText() {
   whispEl.textContent = pick(WHISPERS);
@@ -1370,7 +1468,7 @@ function whisperText() {
 const LEVELS = [[0, 'Sober'], [15, 'Buzzed'], [35, 'Baked'], [50, 'Zooted'], [75, 'Cooked'], [90, 'Greening out']];
 let lastHud = '';
 function hud() {
-  const h = Math.round(L.high), b = Math.round(L.breath * 100), sig = h + '|' + b + '|' + L.holding + '|' + (L.sense || 0) + '|' + G.items.phone + G.items.keys + G.items.jacket;
+  const h = Math.round(L.high), b = Math.round(L.breath * 100), sig = h + '|' + b + '|' + L.holding + '|' + (L.sense || 0) + '|' + G.items.phone + G.items.keys + G.items.jacket + '|' + G.snackBag.length + '|' + G.decoys + '|' + Math.round(G.battery * 100) + G.torch;
   if (sig === lastHud) return; lastHud = sig;
   let lvl = 0; LEVELS.forEach(([v], i) => { if (h >= v) lvl = i; });
   $('highBar').style.width = h + '%'; $('highLbl').textContent = LEVELS[lvl][1] + ' ' + h + '%';
@@ -1378,11 +1476,30 @@ function hud() {
   $('breathBar').style.width = b + '%'; $('breathLbl').textContent = L.holding ? 'Holding' : L.breathLock > 0 ? 'Gasping' : '';
   hudEl.classList.toggle('holding', L.holding);
   sensorEl.dataset.l = L.sense || 0; sensorBars.forEach((el, i) => el.classList.toggle('on', i < (L.sense || 0)));
+  $('foodCount').textContent = G.snackBag.length; $('invFood').classList.toggle('empty', !G.snackBag.length);
+  $('decoyCount').textContent = G.decoys; $('invDecoy').classList.toggle('empty', !G.decoys);
+  $('invPhone').hidden = !G.items.phone; $('battery').textContent = Math.round(G.battery * 100) + '%'; $('invPhone').classList.toggle('on', !!G.torch);
   $('itPhone').classList.toggle('got', G.items.phone); $('itKeys').classList.toggle('got', G.items.keys); $('itJacket').classList.toggle('got', G.items.jacket);
 }
 
 /* ================= game state ================= */
 let state = 'title', t = 0, ready = false, fade = 0;
+const SET = { sens: 1, vol: 1, motion: false };
+try { Object.assign(SET, JSON.parse(localStorage.getItem('lasthit.settings')) || {}); } catch (e) {}
+const mot = () => SET.motion ? .15 : 1;
+let settingsFrom = 'title';
+function openSettings(from) {
+  settingsFrom = from; $(from).hidden = true; $('settings').hidden = false;
+  $('setSens').value = SET.sens; $('setVol').value = SET.vol; $('setMotion').checked = SET.motion; syncSettings();
+}
+function syncSettings() {
+  SET.sens = +$('setSens').value; SET.vol = +$('setVol').value; SET.motion = $('setMotion').checked;
+  $('setSensOut').textContent = SET.sens.toFixed(1) + '×'; $('setVolOut').textContent = Math.round(SET.vol * 100) + '%';
+  if (AC && state !== 'ending') A.master.gain.setValueAtTime(.9 * SET.vol, AC.currentTime);
+  try { localStorage.setItem('lasthit.settings', JSON.stringify(SET)); } catch (e) {}
+}
+for (const id of ['setSens', 'setVol', 'setMotion']) $(id).addEventListener('input', syncSettings);
+$('settingsDone').addEventListener('click', () => { $('settings').hidden = true; $(settingsFrom).hidden = false; });
 const P = { x: 0, z: 0, yaw: 0, pitch: 0, bob: 0, y: EYE, roll: 0 };
 let G = null; // whole run
 let L = null; // this life
@@ -1390,14 +1507,15 @@ let SCENT = [];
 const CR = { room: 'storage', x: 0, z: 0, yaw: 0, state: 'wander', tx: 0, tz: 0, timer: 10, targetRoom: null, leaveDoor: null, lungeT: 0, ldx: 0, ldz: 0, stepAcc: 0, sniffT: 0, idleT: 0, cloud: null, moving: 0, sniffSfx: 0 };
 const freshLife = () => ({ high: 0, light: .5, inhaling: false, pull: 0, coughLock: false, breath: 1, holding: false, breathLock: 0, invertT: 0, driftA: 0, lockCd: 0, stepAcc: 0, doorPush: 0, closing: null, dizzy: 0, stat: 0, hb: 1, shake: 0, near: 0, lr: 0, runNoise: 0, noteShown: null });
 
-function newRun(mode = 'normal') {
+function newRun(mode = 'normal', opts = {}) {
   initAudio();
-  if (AC) { A.master.gain.cancelScheduledValues(AC.currentTime); A.master.gain.setValueAtTime(.9, AC.currentTime); A.droneGain.gain.value = .045; A.windGain.gain.value = .025; }
-  initHouse();
-  G = { mode, runId: null, items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
-  if (supa && me) { const g = G; supa.rpc('start_run', { p_mode: mode }).then(({ data, error }) => { if (!error) g.runId = data; }); }
+  if (AC) { A.master.gain.cancelScheduledValues(AC.currentTime); A.master.gain.setValueAtTime(.9 * SET.vol, AC.currentTime); A.droneGain.gain.value = .045; A.windGain.gain.value = .025; A.musicGain.gain.value = .07; }
+  initHouse(opts.daily ? hashStr('lasthit-' + opts.daily) : null);
+  G = { mode, daily: opts.daily || null, runId: null, snackBag: [], decoys: 0, battery: 1, torch: false, buzzT: rnd(30, 55), snacksEaten: 0, decoyHits: 0, notesRead: new Set(), scareAt: rnd(80, 220), scareDone: false, newAch: [], items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
+  if (supa && me) { const g = G; supa.rpc('start_run', { p_mode: mode, p_daily: !!opts.daily }).then(({ data, error }) => { if (!error) g.runId = data; }); }
   $('title').hidden = true; $('score').hidden = true; $('over').hidden = true; $('pause').hidden = true;
-  $('modeTag').hidden = mode !== 'one';
+  $('modeTag').hidden = mode !== 'one' && !opts.daily; $('modeTag').textContent = opts.daily ? 'Daily house' : 'One life';
+  $('inv').hidden = false; $('hideView').hidden = true;
   scene.fog = null; scene.background.setHex(0x000000);
   wakeUp("You wake on a couch you don't recognise. 4 am. Power's out. Find your phone, your keys and your jacket.");
   lockPointer();
@@ -1416,7 +1534,12 @@ function wakeUp(text) {
 function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
 function resume() { $('pause').hidden = true; state = 'playing'; if (!padActive) lockPointer(); }
 $('resumeBtn').addEventListener('click', resume);
+$('invFood').addEventListener('click', () => { if (state === 'playing') input.eat = true; });
+$('invDecoy').addEventListener('click', () => { if (state === 'playing') input.throw = true; });
+$('invPhone').addEventListener('click', () => { if (state === 'playing') input.torch = true; });
+promptEl.addEventListener('click', () => { if (state === 'playing') input.use = true; });
 function quitToTitle() {
+  setTorch(false); $('inv').hidden = true; $('hideView').hidden = true; if (AC) A.musicGain.gain.value = 0;
   state = 'title'; G = null;
   for (const id of ['pause', 'score', 'over', 'account']) $(id).hidden = true;
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
@@ -1424,15 +1547,20 @@ function quitToTitle() {
   $('title').hidden = false; $('title').scrollTop = 0; refreshTitle();
 }
 $('quitBtn').addEventListener('click', quitToTitle);
+$('pauseSettings').addEventListener('click', () => openSettings('pause'));
+$('settingsBtn').addEventListener('click', () => openSettings('title'));
 $('startBtn').addEventListener('click', () => newRun('normal'));
 $('hardBtn').addEventListener('click', () => newRun('one'));
-$('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal'));
+$('dailyBtn').addEventListener('click', () => newRun('normal', { daily: todayUTC() }));
+$('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal', G && G.daily ? { daily: todayUTC() } : {}));
 $('overAgain').addEventListener('click', () => newRun('one'));
 $('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; refreshTitle(); });
 
 function enterRoom(id, from, slam) {
   if (id === 'living' && from !== null) { if (resetLayout()) say('The house settles. Everything is back where it was.', 3); }
-  buildRoom(id);
+  const shift = L.shift; L.shift = null;
+  buildRoom(id, false, !!shift);
+  setMusicSpot();
   const node = NODES[id];
   node.enteredHigh = L.high >= 60; node.entryFrom = from;
   let dr = from ? cur.doors.find(d => d.to === from) : null;
@@ -1443,7 +1571,8 @@ function enterRoom(id, from, slam) {
     for (let k = 0; k < 10 && blocked(P.x, P.z, PR); k++) { P.x += dr.nx * .2; P.z += dr.nz * .2; }
     if (dr.panel) { dr.panel.rotation.y = -1.35; L.behind = { dr, t: 0 }; } else L.behind = null;
   }
-  showRoom(node.name || ' ');
+  if (shift) { showRoomShift(shift.expected, node.name || ' '); sfx.shiftSting(); if (!G.seenShift) { G.seenShift = true; setTimeout(() => say('Wait. That door used to go somewhere else.', 3.5), 1100); } }
+  else showRoom(node.name || ' ');
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
   if (CR.room === id) { placeCreatureFar(); if (L.openNoisy) { crHear(P.x, P.z); CR.grace = 1.2; } }
@@ -1520,7 +1649,8 @@ function useDoor(dr) {
     return;
   }
   let to = dr.to;
-  if (cur.node.enteredHigh && dr.to === cur.node.entryFrom) to = shuffleFrom(cur.id, dr.to);
+  L.shift = null;
+  if (cur.node.enteredHigh && dr.to === cur.node.entryFrom) { const expected = NODES[dr.to].name; to = shuffleFrom(cur.id, dr.to); L.shift = { expected }; }
   input.auto = false;
   const run = runHeld() && !L.holding, at = { x: dr.x, y: 1.2, z: dr.z };
   if (L.behind && L.behind.dr === dr) L.behind = null;
@@ -1558,10 +1688,140 @@ function exhale(coughed) {
   if (coughed) { sfx.cough(); L.high += 4; L.coughLock = true; L.shake = 3; say('You coughed. It heard that.', 3); noise(P.x, P.z, 14, 2); }
   else { sfx.exhale(p); noise(P.x, P.z, 2.2, 0); }
 }
-function greenout() { promptEl.hidden = true; state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
-function caught() { promptEl.hidden = true; state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
+/* ---------- hiding ---------- */
+function enterHide(hd) {
+  L.hidden = { hd, back: { x: P.x, z: P.z } };
+  P.x = hd.x; P.z = hd.z; P.yaw = Math.atan2(-hd.nx, -hd.nz); P.pitch = hd.kind === 'tub' ? .5 : 0;
+  L.inhaling = false; setTorch(false);
+  $('hideView').className = hd.kind; $('hideView').hidden = false;
+  sfx.rustle(); noise(P.x, P.z, 2, 0); L.nearDoor = undefined;
+}
+function leaveHide(quiet) {
+  const hd = L.hidden.hd; L.hidden = null;
+  P.x = hd.out.x; P.z = hd.out.z; P.pitch = 0;
+  $('hideView').hidden = true; L.nearDoor = undefined;
+  if (!quiet) { sfx.rustle(); noise(P.x, P.z, 2.5, 0); }
+}
+/* ---------- snacks ---------- */
+function eatSnack() {
+  if (!G.snackBag.length) { say('You have nothing to eat.', 1.6); return; }
+  if (L.hidden && L.holding) return;
+  const kind = G.snackBag.shift(), def = SNACKS[kind];
+  L.snackDrop = (L.snackDrop || 0) + def.drop; sfx[def.sound](); G.snacksEaten++;
+  if (def.loud) noise(P.x, P.z, 4, 0);
+  say(`You eat ${def.name}. ${def.line}`, 3);
+  if (G.snacksEaten >= 5) unlock('snacks');
+}
+/* ---------- decoys ---------- */
+const PROJ = [];
+function throwDecoy() {
+  if (!G.decoys) { say('Nothing to throw. Empty bottles and cans are lying around.', 2); return; }
+  if (L.hidden) return;
+  G.decoys--;
+  const cp = Math.cos(P.pitch), fx = -Math.sin(P.yaw) * cp, fy = Math.sin(P.pitch), fz = -Math.cos(P.yaw) * cp;
+  const m = C(.035, .035, .24, MAT.greenGlass, P.x + fx * .4, EYE - .1, P.z + fz * .4, null, 8); scene.add(m);
+  PROJ.push({ m, room: cur.id, vx: fx * 8.5, vy: fy * 8.5 + 2.4, vz: fz * 8.5, spin: rnd(8, 14) });
+  sfx.whoosh();
+}
+function updateProjectiles(dt) {
+  for (let i = PROJ.length - 1; i >= 0; i--) {
+    const pj = PROJ[i], m = pj.m;
+    if (pj.room !== cur.id) { scene.remove(m); m.geometry.dispose(); PROJ.splice(i, 1); continue; }
+    pj.vy -= 9.8 * dt; m.position.x += pj.vx * dt; m.position.y += pj.vy * dt; m.position.z += pj.vz * dt; m.rotation.x += pj.spin * dt;
+    const hw = cur.w / 2 - .1, hd = cur.d / 2 - .1;
+    let hit = m.position.y <= .05 || m.position.y >= H - .05;
+    if (Math.abs(m.position.x) > hw) { m.position.x = Math.sign(m.position.x) * hw; hit = true; }
+    if (Math.abs(m.position.z) > hd) { m.position.z = Math.sign(m.position.z) * hd; hit = true; }
+    if (!hit) continue;
+    const x = m.position.x, z = m.position.z;
+    sfx.smash({ x, y: Math.max(.1, m.position.y), z }); noise(x, z, 10, 1);
+    if (CR.room === cur.id && Math.hypot(CR.x - x, CR.z - z) < 10) { G.decoyHits++; if (G.decoyHits >= 3) unlock('decoy'); }
+    scene.remove(m); m.geometry.dispose(); PROJ.splice(i, 1);
+  }
+}
+/* ---------- phone torch ---------- */
+const torch = new THREE.SpotLight(0xdfe8ff, 0, 10, .55, .6, 1.6);
+torch.position.set(.1, -.1, 0); camera.add(torch);
+const torchTarget = new THREE.Object3D(); torchTarget.position.set(0, -.15, -3); camera.add(torchTarget); torch.target = torchTarget;
+const flashLight = new THREE.PointLight(0xcfe0ff, 0, 5, 2); flashLight.position.set(0, -.2, -.3); camera.add(flashLight);
+function setTorch(on) {
+  if (!G) return;
+  if (on && !G.items.phone) { say("You'd need your phone for a light.", 1.8); return; }
+  if (on && G.battery <= 0) { say("Your phone's dead.", 1.8); return; }
+  if (on && L && L.hidden) return;
+  if (G.torch !== on) sfx.click();
+  G.torch = on;
+}
+const TEXTS = ['Unknown number: i can hear you', 'Unknown number: why did you turn the lights off', 'Mia: where are you??', 'Unknown number: dont go upstairs', 'Unknown number: its right behind the', 'Sam: did you get out'];
+function phoneBuzz() {
+  sfx.buzz(); L.flash = .9; noise(P.x, P.z, 7, 1);
+  say(`Your phone buzzes. ${pick(TEXTS)}`, 3.2);
+}
+/* ---------- scripted scare ---------- */
+const flicker = makeCreature(); flicker.visible = false; scene.add(flicker);
+const flickerLight = new THREE.AmbientLight(0xfff2dc, 0); scene.add(flickerLight);
+function powerFlicker() {
+  const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+  let d = 0; for (let k = 2.5; k < 7; k += .25) { if (blocked(P.x + fx * k, P.z + fz * k, .35)) break; d = k; }
+  if (d < 3) { G.scareAt = G.time + 8; return; }
+  G.scareDone = true;
+  const x = P.x + fx * (d - .3), z = P.z + fz * (d - .3);
+  flicker.position.set(x, 0, z); flicker.rotation.y = Math.atan2(P.x - x, P.z - z); flicker.visible = true;
+  animCreature(flicker, x, z, flicker.rotation.y, 0, false);
+  sfx.powerOn();
+  const steps = [[0, 2.2], [90, 0], [150, 2.6], [520, 0]];
+  for (const [ms, v] of steps) setTimeout(() => { flickerLight.intensity = v; if (v === 0 && ms > 200) { flicker.visible = false; if (L) { L.stat = .45; L.hb = 0; } } }, ms);
+}
+/* ---------- party music through the walls ---------- */
+function setMusicSpot() {
+  if (!AC || !cur) return;
+  const a = (hashStr(cur.id) % 628) / 100, r = Math.max(cur.w, cur.d) / 2 + 7;
+  setPos(A.musicPan, Math.cos(a) * r, 1, Math.sin(a) * r);
+}
+function musicTick() {
+  if (!AC || !A.musicGain || state === 'ending' || state === 'score' || state === 'title') return;
+  const hn = L ? L.high / 100 : 0, now = AC.currentTime;
+  if (!A.beatAt || A.beatAt < now) A.beatAt = now + .05;
+  while (A.beatAt < now + .25) {
+    const at = A.beatAt, beat = A.beat = (A.beat || 0) + 1;
+    const pitch = 1 - hn * .22 + Math.sin(t * .3) * hn * .06;
+    const kick = AC.createOscillator(), kg = AC.createGain(); kick.frequency.setValueAtTime(70 * pitch, at); kick.frequency.exponentialRampToValueAtTime(38 * pitch, at + .2);
+    kg.gain.setValueAtTime(.9, at); kg.gain.exponentialRampToValueAtTime(.001, at + .28); kick.connect(kg); kg.connect(A.musicIn); kick.start(at); kick.stop(at + .3);
+    if (beat % 2 === 0) { const b = AC.createOscillator(), bg = AC.createGain(); b.type = 'sawtooth'; b.frequency.value = [55, 55, 65.4, 49][(beat >> 1) % 4] * pitch; bg.gain.setValueAtTime(.35, at); bg.gain.exponentialRampToValueAtTime(.001, at + .22); b.connect(bg); bg.connect(A.musicIn); b.start(at); b.stop(at + .25); }
+    A.beatAt += 60 / (122 * (1 - hn * .3 + Math.sin(t * .17) * hn * .1)) / 2;
+  }
+}
+/* ---------- achievements ---------- */
+const ACH = [
+  ['sober', 'Clean getaway', 'Escape without taking a single hit.'],
+  ['untouched', 'Untouchable', 'Escape without getting caught.'],
+  ['cooked', 'Fully cooked', 'Escape while over 90% high.'],
+  ['onelife', 'No second chances', 'Escape in One life mode.'],
+  ['daily', 'Daily visitor', 'Escape the daily house.'],
+  ['bookworm', 'Bookworm', 'Read every note in the house.'],
+  ['snacks', 'Munchies', 'Eat five snacks in one run.'],
+  ['decoy', 'Ventriloquist', 'Distract it with three thrown bottles in one run.'],
+  ['hideseek', 'Hide and seek', 'Stay hidden while it is within three metres.']
+];
+let ACHS = {}; try { ACHS = JSON.parse(localStorage.getItem('lasthit.ach')) || {}; } catch (e) {}
+const toastEl = $('toast'); let toastT = 0;
+function unlock(id) {
+  if (ACHS[id]) return;
+  ACHS[id] = Date.now(); try { localStorage.setItem('lasthit.ach', JSON.stringify(ACHS)); } catch (e) {}
+  const a = ACH.find(x => x[0] === id); if (G) G.newAch.push(a[1]);
+  toastEl.textContent = 'Achievement: ' + a[1]; toastEl.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('show'), 3200);
+  sfx.pickup(); renderAch();
+}
+function renderAch() {
+  const list = $('achList'); list.replaceChildren();
+  for (const [id, name, desc] of ACH) { const li = document.createElement('li'); li.className = ACHS[id] ? 'got' : ''; const b = document.createElement('b'); b.textContent = name; li.append(b, desc); list.append(li); }
+  $('achCount').textContent = Object.keys(ACHS).filter(k => ACH.some(a => a[0] === k)).length + '/' + ACH.length;
+}
+renderAch();
+function greenout() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
+function caught() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
 function gameOver() {
-  state = 'over';
+  state = 'over'; $('inv').hidden = true; setTorch(false); if (AC) A.musicGain.gain.value = 0;
   if (document.pointerLockElement) document.exitPointerLock();
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
   const got = Object.values(G.items).filter(Boolean).length, s = Math.floor(G.time);
@@ -1603,8 +1863,9 @@ function update(dt) {
     P.yaw += Math.sin(L.driftA * 1.3) * m * .35 * dt;
     s += Math.cos(L.driftA) * k; f += Math.sin(L.driftA) * k;
   }
+  if (L.hidden) { f = 0; s = 0; }
   const l = Math.hypot(f, s); if (l > 1) { f /= l; s /= l; }
-  const running = runHeld() && moving && !L.holding && !L.inhaling;
+  const running = runHeld() && moving && !L.holding && !L.inhaling && !L.hidden;
   const sp = (running ? 4.3 : 2.3) * (1 - L.high * .003) * (L.inhaling ? .6 : 1) * (L.holding ? .55 : 1);
   const sy = Math.sin(P.yaw), cy = Math.cos(P.yaw);
   const mvx = -sy * f + cy * s, mvz = -cy * f - sy * s;
@@ -1613,11 +1874,11 @@ function update(dt) {
   L.stepAcc += moved;
   if (L.stepAcc > (running ? .95 : .7)) { L.stepAcc = 0; sfx.myStep(L.holding ? .03 : running ? .22 : .08); }
   if (running) { L.runNoise -= dt; if (L.runNoise <= 0) { noise(P.x, P.z, 10, 1); L.runNoise = .4; } }
-  L.noiseR = L.holding ? 0 : running ? 10 : moving ? 3 : 1.4;
+  L.noiseR = L.holding ? 0 : L.hidden ? .9 : running ? 10 : moving ? 3 : 1.4;
 
   // pen
   const held = penHeld();
-  if (held && !L.coughLock && !L.holding) {
+  if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
     L.pull += dt; L.high += dt * 8;
     if (Math.random() < dt * 14) sfx.crackle();
@@ -1635,10 +1896,19 @@ function update(dt) {
     const dx = P.x - dr.x, dz = P.z - dr.z, dn = dx * dr.nx + dz * dr.nz, lat = Math.abs(dx * dr.nz - dz * dr.nx);
     if (dn < 1.35 && lat < (dr.front ? .9 : .65) && (fx * -dr.nx + fz * -dr.nz) > .35) near = dr;
   }
-  if (near !== L.nearDoor) {
-    L.nearDoor = near; promptEl.hidden = !near || isTouch;
-    if (near) promptEl.innerHTML = '<kbd>E</kbd>' + (near.front ? 'Front door' : near.stairs ? (near.stairs > 0 ? 'Go upstairs' : 'Go downstairs') : 'Open door');
+  let nearHide = null;
+  if (!L.hidden) for (const hd of cur.hides) { const d = Math.hypot(hd.out.x - P.x, hd.out.z - P.z); if (d < .9 && (fx * -hd.nx + fz * -hd.nz) > .2 && (!near || d < .6)) nearHide = hd; }
+  if (nearHide || L.hidden) near = null;
+  const promptKey = L.hidden ? 'out' : nearHide ? nearHide : near;
+  if (promptKey !== L.nearDoor) {
+    L.nearDoor = promptKey; promptEl.hidden = !promptKey;
+    const tag = isTouch ? '' : '<kbd>E</kbd>';
+    if (L.hidden) promptEl.innerHTML = tag + 'Climb out';
+    else if (nearHide) promptEl.innerHTML = tag + HIDES[nearHide.kind].label;
+    else if (near) promptEl.innerHTML = tag + (near.front ? 'Front door' : near.stairs ? (near.stairs > 0 ? 'Go upstairs' : 'Go downstairs') : 'Open door');
+    if (isTouch && !near) promptEl.style.pointerEvents = promptKey ? 'auto' : 'none';
   }
+  if (input.use && (L.hidden || nearHide)) { input.use = false; if (L.hidden) leaveHide(); else enterHide(nearHide); }
   if (isTouch) {
     const pushing = near && moving && (mvx * -near.nx + mvz * -near.nz) > .5 && (P.x - near.x) * near.nx + (P.z - near.z) * near.nz < .85;
     if (pushing) { L.doorPush += dt; if (L.doorPush > .18) { L.doorPush = 0; tryDoor(near); if (state !== 'playing') return; } } else L.doorPush = 0;
@@ -1667,15 +1937,22 @@ function update(dt) {
     }
   }
   for (const sk of cur.snacks) {
-    if (sk.sn.eaten || Math.hypot(sk.x - P.x, sk.z - P.z) > .8) continue;
-    const def = SNACKS[sk.sn.kind];
-    sk.sn.eaten = true; sk.mesh.visible = false; L.snackDrop = (L.snackDrop || 0) + def.drop; sfx[def.sound]();
-    if (def.loud) noise(P.x, P.z, 4, 0);
-    say(`You eat ${def.name}. ${def.line}`, 3);
+    if (sk.sn.eaten || G.snackBag.length >= 6 || Math.hypot(sk.x - P.x, sk.z - P.z) > .8) continue;
+    sk.sn.eaten = true; sk.mesh.visible = false; G.snackBag.push(sk.sn.kind); sfx.pocket();
+    say(`Picked up ${SNACKS[sk.sn.kind].name}.` + (G.snackBag.length === 1 && !G.toldEat ? (isTouch ? ' Tap the food icon to eat it.' : ' Press Q to eat it.') : ''), 2.4); G.toldEat = true;
   }
+  for (const th of cur.throwables) {
+    if (th.taken || G.decoys >= 3 || Math.hypot(th.x - P.x, th.z - P.z) > .6) continue;
+    th.taken = true; th.mesh.visible = false; G.decoys++; sfx.pocket();
+    if (!G.toldThrow) { G.toldThrow = true; say(`Picked up ${th.kind === 'can' ? 'an empty can' : 'an empty bottle'}. ` + (isTouch ? 'Tap the bottle icon to throw it.' : 'Press G to throw it.') + ' It goes for the noise.', 3.4); }
+  }
+  if (input.eat) { input.eat = false; eatSnack(); }
+  if (input.throw) { input.throw = false; throwDecoy(); }
+  if (input.torch) { input.torch = false; setTorch(!G.torch); }
+  updateProjectiles(dt);
   if (L.snackDrop > 0) { const k = Math.min(L.snackDrop, dt * 8); L.high = Math.max(0, L.high - k); L.snackDrop -= k; }
   let note = null; for (const n of cur.notes) if (Math.hypot(n.x - P.x, n.z - P.z) < 1.3) note = n;
-  if (note !== L.noteShown) { L.noteShown = note; noteEl.hidden = !note; if (note) noteEl.textContent = note.text; }
+  if (note !== L.noteShown) { L.noteShown = note; noteEl.hidden = !note; if (note) { noteEl.textContent = note.text; G.notesRead.add(note.text); if (G.notesRead.size >= NOTES.length) unlock('bookworm'); } }
 
   updateCreature(dt);
   if (state !== 'playing') return;
@@ -1683,7 +1960,7 @@ function update(dt) {
 
   // dizziness from lights
   let dz = 0;
-  for (const lt of cur.lights) if (lt.kind !== 'door') dz = Math.max(dz, clamp(1 - Math.hypot(lt.x - P.x, lt.z - P.z) / 3.2, 0, 1));
+  if (cur.id !== 'living') for (const lt of cur.lights) if (lt.kind !== 'door') dz = Math.max(dz, clamp(1 - Math.hypot(lt.x - P.x, lt.z - P.z) / 3.2, 0, 1));
   L.dizzy += (dz * (.35 + L.high / 100 * .9) - L.dizzy) * Math.min(1, dt * 2);
 
   // proximity sensor: bars by distance in this room, one bar if it's next door
@@ -1755,6 +2032,12 @@ function updateWorld(dt) {
     sfx.whisper({ x: P.x + bx * .7 + Math.cos(P.yaw) * side * .4, y: EYE, z: P.z + bz * .7 - Math.sin(P.yaw) * side * .4 });
   }
   if (L.high > 65 && Math.random() < dt * .06) whisperText();
+  // your phone, once found, buzzes now and then and lights up
+  if (G.items.phone) { G.buzzT -= dt; if (G.buzzT <= 0) { G.buzzT = rnd(35, 70); phoneBuzz(); } }
+  if (G.torch) { G.battery = Math.max(0, G.battery - dt / 60); if (G.battery <= 0) { setTorch(false); say("Your phone's dead.", 2.4); } }
+  if (L.flash > 0) L.flash = Math.max(0, L.flash - dt);
+  // one scripted scare per run: the power flickers on and it's standing right there
+  if (!G.scareDone && G.time > G.scareAt && cur.id !== 'living' && !L.hidden && CR.room !== cur.id) powerFlicker();
   if (L.high >= 50 && Math.random() < dt * .12) {
     const a = Math.random() * TAU, where = { x: P.x + Math.cos(a) * 4, y: 1.8, z: P.z + Math.sin(a) * 4 };
     Math.random() < .5 ? sfx.sniff(where, .18) : sfx.step(where, .15);
@@ -1876,7 +2159,8 @@ function updateCreature(dt) {
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .4 : .25); if (d < 4 && Math.random() < .3) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .14); }
-  if (CR.grace <= 0 && !CR.visiting && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && L.holding) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (L.hidden && d < 3) unlock('hideseek');
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
   CR.sniffing = sniffing;
@@ -1904,7 +2188,9 @@ function creatureEnters(fromRoom) {
 let outside = null, friend = null;
 function startEnding() {
   promptEl.hidden = true;
+  G.escapeHigh = L.high; if (L.hidden) leaveHide(true); setTorch(false);
   state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time;
+  $('inv').hidden = true;
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; roomEl.classList.remove('show'); msgEl.classList.remove('show');
   L.high = 0; L.dizzy = 0; L.stat = 0; L.light = 0; L.inhaling = false;
   if (A.crGain) A.crGain.gain.value = 0;
@@ -1943,7 +2229,7 @@ function updateEnding(dt) {
     // morning
     scene.remove(outside); outside.traverse(o => o.geometry && o.geometry.dispose()); outside = null;
     scene.fog = null; scene.background.setHex(0x000000);
-    if (AC) { A.droneGain.gain.value = 0; A.windGain.gain.value = 0; A.master.gain.setValueAtTime(.9, AC.currentTime); }
+    if (AC) { A.droneGain.gain.value = 0; A.windGain.gain.value = 0; A.musicGain.gain.value = 0; A.master.gain.setValueAtTime(.9 * SET.vol, AC.currentTime); }
     resetLayout(); buildRoom('living', true);
     const c = cur.couch || { cx: 0, cz: 0, nx: 0, nz: 1 };
     P.x = c.cx + c.nx * .1; P.z = c.cz + c.nz * .1; P.y = .78; P.yaw = Math.atan2(-c.nx, -c.nz); P.pitch = .45; P.roll = .5;
@@ -1978,9 +2264,15 @@ function showScore() {
   $('sDeaths').firstChild.textContent = G.deathsC + G.deathsG;
   $('sDeathSplit').textContent = `${G.deathsC} caught · ${G.deathsG} greened out`;
   $('sTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
+  if (G.pulls === 0) unlock('sober');
+  if (G.deathsC === 0) unlock('untouched');
+  if ((G.escapeHigh || 0) > 90) unlock('cooked');
+  if (G.mode === 'one') unlock('onelife');
+  if (G.daily) unlock('daily');
+  $('sAch').textContent = G.newAch.length ? 'Unlocked: ' + G.newAch.join(', ') + '.' : '';
   const run = { time: s, pulls: G.pulls, deaths: G.deathsC + G.deathsG };
-  const bestKey = G.mode === 'one' ? 'lasthit.best.onelife' : 'houseparty.best';
-  $('scoreEyebrow').textContent = G.mode === 'one' ? 'You left the house · One life' : 'You left the house';
+  const bestKey = G.daily ? 'lasthit.best.daily.' + G.daily : G.mode === 'one' ? 'lasthit.best.onelife' : 'houseparty.best';
+  $('scoreEyebrow').textContent = G.daily ? 'You left the house · Daily ' + G.daily : G.mode === 'one' ? 'You left the house · One life' : 'You left the house';
   let best = null; try { best = JSON.parse(localStorage.getItem(bestKey)); } catch (e) {}
   const news = [];
   if (best) { for (const k of ['time', 'pulls', 'deaths']) if (run[k] < best[k]) { best[k] = run[k]; news.push(k); } } else best = { ...run };
@@ -1988,8 +2280,8 @@ function showScore() {
   const fmt = v => Math.floor(v / 60) + ':' + String(v % 60).padStart(2, '0');
   $('sBest').textContent = `Your bests: ${fmt(best.time)} time, ${best.pulls} pulls, ${best.deaths} deaths.` + (news.length ? ` New best ${news.join(' and ')}!` : '');
   if (supa) {
-    lastRun = { runId: G.runId, mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
-    $('boardScore').hidden = false; loadBoard($('boardScore'), G.mode);
+    lastRun = { runId: G.runId, board: G.daily ? 'daily' : G.mode, mode: G.mode, time: run.time, pulls: run.pulls, deaths: run.deaths, peak: Math.round(G.peak), sent: false };
+    $('boardScore').hidden = false; loadBoard($('boardScore'), G.daily ? 'daily' : G.mode);
     updateSubmit();
   }
   $('score').hidden = false; msgEl.classList.remove('show');
@@ -2004,16 +2296,20 @@ function render(dt) {
   const endClose = state === 'ending' && G.endStep === 5 && G.lungeK > .6;
   if (endClose) { shx = rnd(-.025, .025); shy = rnd(-.025, .025); }
   if (scare) { shx = rnd(-.03, .03); shy = rnd(-.03, .03); P.pitch *= .85; CR.x = P.x - Math.sin(P.yaw) * 1.05; CR.z = P.z - Math.cos(P.yaw) * 1.05; }
-  const dz = ending ? 0 : L.dizzy;
-  camera.position.set(P.x + shx, (ending ? P.y : EYE) + (ending ? 0 : Math.sin(P.bob) * .035) + shy, P.z);
-  camera.rotation.set(P.pitch + Math.sin(t * .6) * hn * .05 + Math.sin(t * 1.3) * dz * .04, P.yaw, Math.sin(t * .5) * hn * .12 + go * go * 1.2 + Math.sin(t * .9) * dz * .09 + (ending ? P.roll : 0));
-  camera.fov = 72 + Math.sin(t * .9) * hn * 14 + go * 35 + dz * 8; camera.updateProjectionMatrix();
+  const dz = ending ? 0 : L.dizzy, mo = mot();
+  shx *= mo; shy *= mo;
+  const eyeY = ending ? P.y : L.hidden ? HIDES[L.hidden.hd.kind].y : EYE;
+  camera.position.set(P.x + shx, eyeY + (ending || L.hidden ? 0 : Math.sin(P.bob) * .035 * mo) + shy, P.z);
+  camera.rotation.set(P.pitch + (Math.sin(t * .6) * hn * .05 + Math.sin(t * 1.3) * dz * .04) * mo, P.yaw, (Math.sin(t * .5) * hn * .12 + go * go * 1.2 + Math.sin(t * .9) * dz * .09) * mo + (ending ? P.roll : 0));
+  camera.fov = 72 + (Math.sin(t * .9) * hn * 14 + go * 35 + dz * 8) * mo; camera.updateProjectionMatrix();
 
   // lights
   const lampR = ending ? 0 : lampRadius();
   if (scare) { lamp.intensity = 6; lamp.distance = 4; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
+  torch.intensity = !ending && G && G.torch ? 9 * (.85 + Math.random() * .05) * (G.battery < .15 ? (Math.random() < .2 ? .2 : 1) : 1) : 0;
+  flashLight.intensity = !ending && L.flash > 0 ? 4 * L.flash : 0;
   if (cur) for (const lt of cur.lights) {
     let k = 1;
     if (lt.kind === 'candle') k = .8 + Math.sin(t * 11 + lt.ph) * .08 + Math.sin(t * 23) * .06 + (Math.random() - .5) * .08;
@@ -2028,7 +2324,7 @@ function render(dt) {
   penLift += ((!ending && L.inhaling ? 1 : 0) - penLift) * Math.min(1, dt * 8);
   pen.position.lerpVectors(PEN_REST, PEN_HIT, penLift); pen.position.y += Math.sin(P.bob) * .006;
   pen.rotation.set(.5 + penLift * .75, 0, -.35 + penLift * .25);
-  pen.visible = !scare && !ending;
+  pen.visible = !scare && !ending && !L.hidden;
   ledMat.color.setHex(!ending && L.inhaling ? 0xffc070 : 0x3a2410);
   ledGlowMat.opacity = !ending && L.inhaling ? .9 : .12;
 
@@ -2083,6 +2379,7 @@ function render(dt) {
 
   // post
   const u = postMat.uniforms;
+  u.uMotion.value = mo; u.uFlash.value = flickerLight.intensity;
   u.uTime.value = t; u.uHigh.value = hn; u.uGo.value = go; u.uDizzy.value = dz; u.uHold.value = ending ? 0 : L.holding ? 1 : (L.hbPulse || 0) * .7;
   u.uTrail.value = clamp((hn - .5) / .5, 0, 1) * .85 + go * .1;
   u.uStatic.value = endClose ? .22 : ending ? 0 : Math.min(.5, L.stat + L.near * .08) + (scare ? .25 : 0);
@@ -2123,8 +2420,11 @@ function pollPad(dt) {
   input.brPad = br;
   if (state === 'playing') {
     const inv = L && L.invertT > 0 ? -1 : 1, rx = ax(2), ry = ax(3);
-    P.yaw -= rx * Math.abs(rx) * 2.8 * dt * inv; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2.0 * dt * inv, -1.3, 1.3);
+    P.yaw -= rx * Math.abs(rx) * 2.8 * SET.sens * dt * inv; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2.0 * SET.sens * dt * inv, -1.3, 1.3);
     if (tap(0)) input.use = true;
+    if (tap(3)) input.eat = true;
+    if (tap(2)) input.throw = true;
+    if (tap(5)) input.torch = true;
     if (tap(9)) pause();
   } else if (state === 'paused') { if (tap(9) || tap(0)) resume(); else if (tap(1)) quitToTitle(); }
   else if ((state === 'title' || state === 'score' || state === 'over') && ready && (tap(0) || tap(9))) newRun(state === 'title' ? 'normal' : G.mode);
@@ -2132,6 +2432,7 @@ function pollPad(dt) {
 }
 function tick(dt) {
   pollPad(dt);
+  musicTick();
   t += dt;
   if (state === 'playing') update(dt);
   else if (state === 'opening') {
@@ -2153,7 +2454,8 @@ function tick(dt) {
 }
 requestAnimationFrame(frame);
 ready = true;
-const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
+const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false; $('dailyBtn').disabled = false;
 </script>
 </body>
 </html>
