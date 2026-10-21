@@ -2945,7 +2945,6 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
-if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get state() { return state; }, P, CR, NODES: () => NODES, startEnding: () => startEnding(), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
