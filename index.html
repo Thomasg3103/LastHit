@@ -671,6 +671,7 @@ const creatureSkin = ctex(128, 128, (g, w, h) => {
 });
 const figMat = new THREE.MeshLambertMaterial({ color: 0x5a5a5a, map: creatureSkin, emissive: 0x0b0b0b });
 const boneMat = new THREE.MeshLambertMaterial({ color: 0x3a3630, emissive: 0x0a0908 });
+const ribMat = new THREE.MeshLambertMaterial({ color: 0x24201c, emissive: 0x060505 });
 const clawMat = new THREE.MeshLambertMaterial({ color: 0x8a8070, emissive: 0x111111 });
 const mouthMat = new THREE.MeshBasicMaterial({ color: 0x1a0003 });
 const toothMat = new THREE.MeshLambertMaterial({ color: 0xd8d2bf, emissive: 0x111111 });
@@ -1299,7 +1300,7 @@ function makeCreature() {
   // hollow torso: narrow waist, flared ribcage
   const prof = [[0, 0], [.13, .01], [.15, .09], [.1, .3], [.095, .42], [.16, .6], [.21, .78], [.2, .93], [.13, 1.04], [.02, 1.08]].map(([x, y]) => new THREE.Vector2(x, y));
   const torso = mk(new THREE.LatheGeometry(prof, 14), M, 0, .9, 0, body); torso.scale.set(1.15, 1, .78);
-  for (let i = 0; i < 5; i++) { const rib = mk(new THREE.TorusGeometry(.215 - Math.abs(i - 2) * .012, .011, 5, 18), boneMat, 0, 1.52 + i * .075, 0, body); rib.rotation.x = Math.PI / 2; rib.scale.set(1.13, .8, 1); }
+  for (let i = 0; i < 5; i++) { const rib = mk(new THREE.TorusGeometry(.215 - Math.abs(i - 2) * .012, .008, 5, 14, Math.PI * .9), ribMat, 0, 1.52 + i * .075, 0, body); rib.rotation.set(Math.PI / 2, 0, Math.PI * .05); rib.scale.set(1.13, .8, 1); }
   for (let i = 0; i < 8; i++) S(.028 - i * .001, boneMat, 0, 1.12 + i * .11, -.15 + Math.sin(i * .5) * .01, body);
   for (const s of [-1, 1]) S(.07, M, s * .26, 1.86, 0, body);
   // long arms: shoulder -> elbow -> hand with hooked claws
@@ -1936,7 +1937,7 @@ function enterHide(hd) {
   // it only knows where you went if it was close enough to hear you climb in
   const heard = CR.room === cur.id && !CR.visiting && CR.state !== 'leave' && Math.hypot(CR.x - P.x, CR.z - P.z) < 3;
   L.hidden = { hd, heard, back: { x: P.x, z: P.z } };
-  if (heard) { CR.state = 'track'; CR.tx = hd.out.x; CR.tz = hd.out.z; CR.chase = true; CR.hideHunt = true; CR.cloud = null; say('"It heard me get in."', 2.4, true); }
+  if (heard) { CR.state = 'track'; CR.tx = hd.out.x; CR.tz = hd.out.z; CR.chase = true; CR.hideHunt = true; CR.cloud = null; CR.searchLeave = false; CR.idleT = 0; CR.leaveDoor = null; say('"It heard me get in."', 2.4, true); }
   else { if (CR.room === cur.id && CR.state !== 'leave') { CR.chase = false; CR.cloud = null; CR.state = 'sniff'; CR.sniffT = 2.5; CR.searchLeave = true; } say('"Okay. Stay still."', 2, true); }
   P.x = hd.x; P.z = hd.z; P.yaw = Math.atan2(-hd.nx, -hd.nz); P.pitch = hd.kind === 'tub' ? .5 : 0;
   L.inhaling = false; setTorch(false);
@@ -2450,6 +2451,7 @@ function updateCreature(dt) {
       break;
     }
   }
+  if (CR.hideHunt && L.hidden && L.hidden.heard && CR.state !== 'lunge' && CR.state !== 'windup') { CR.state = 'track'; CR.tx = L.hidden.hd.out.x; CR.tz = L.hidden.hd.out.z; CR.chase = true; }
   if (CR.state === 'track' || CR.state === 'wander') { tx = CR.tx; tz = CR.tz; }
   const ox = CR.x, oz = CR.z;
   if (speed > 0) {
@@ -2474,6 +2476,7 @@ function updateCreature(dt) {
 function startLunge() { CR.state = 'windup'; CR.windT = .6; sfx.growl(crWhere(), .9); }
 function lungeNow() { CR.state = 'lunge'; CR.lungeT = .55; const d = Math.hypot(P.x - CR.x, P.z - CR.z) || 1; CR.ldx = (P.x - CR.x) / d; CR.ldz = (P.z - CR.z) / d; sfx.growl(crWhere(), .45); }
 function startLeave(away = false) {
+  if (CR.hideHunt && L && L.hidden && L.hidden.heard) return; // it knows where you are
   let dr = null;
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
   if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); if (away) opts.sort((a, b) => Math.hypot(b.x - P.x, b.z - P.z) - Math.hypot(a.x - P.x, a.z - P.z)); dr = opts.length ? (away ? opts[0] : pick(opts)) : null; }
