@@ -841,14 +841,23 @@ function updateSubmit() {
 async function saveRun() {
   const msg = $('submitMsg'), btn = $('submitBtn');
   btn.hidden = true; msg.textContent = `Saving as ${me.username}…`;
-  const { error } = await supa.rpc('submit_score', { p_run: lastRun.runId, p_pulls: lastRun.pulls, p_deaths: lastRun.deaths, p_peak: lastRun.peak });
+  const before = await supa.from('scores').select('time_sec').eq('user_id', me.id).eq('mode', lastRun.mode).is('daily', null).order('time_sec').limit(1);
+  const prevBest = before.data && before.data.length ? before.data[0].time_sec : null;
+  const { data: newId, error } = await supa.rpc('submit_score', { p_run: lastRun.runId, p_pulls: lastRun.pulls, p_deaths: lastRun.deaths, p_peak: lastRun.peak });
   if (error) {
     const final = /already submitted|run not found|time_sec|one_life/.test(error.message);
     msg.textContent = /already submitted/.test(error.message) ? 'This run is already on the leaderboard.' : final ? "This run can't go on the leaderboard." : "Couldn't save your time. Check your connection and try again.";
     btn.hidden = final; btn.lastChild.textContent = 'Try again';
     return;
   }
-  lastRun.sent = true; msg.textContent = `Saved to the leaderboard as ${me.username}.`;
+  lastRun.sent = true;
+  // the server timed this run; read its time back and compare
+  const mine = await supa.from('scores').select('time_sec').eq('id', newId).maybeSingle();
+  const tsec = mine.data ? mine.data.time_sec : null;
+  if (tsec == null) msg.textContent = `Saved to the leaderboard as ${me.username}.`;
+  else if (prevBest == null) msg.textContent = `Your first escape is on the board: ${fmtTime(tsec)}.`;
+  else if (tsec < prevBest) msg.textContent = `New personal best: ${fmtTime(tsec)} (was ${fmtTime(prevBest)}). The leaderboard is updated.`;
+  else msg.textContent = `${fmtTime(tsec)}. Your best is still ${fmtTime(prevBest)}, so the leaderboard keeps that one.`;
   loadBoard($('boardScore'), lastRun.board);
 }
 $('submitBtn').addEventListener('click', () => { if (!me) openAccount(); else saveRun(); });
@@ -2640,8 +2649,8 @@ function updateEnding(dt) {
   }
   if (G.endStep >= 7 && G.endStep < 11) { fade = Math.max(0, 1 - (e - ENDING[6]) / 1.2); }
   if (G.endStep >= 7 && e < ENDING[8]) { P.roll = .5 + Math.sin(e * 9) * .03; P.yaw += Math.sin(e * 13) * .002; }
-  if (G.endStep >= 7 && !G.saidWake && e > ENDING[6] + .9) { G.saidWake = true; say('"Dude. Dude, wake up."', 2.2, true); speak('Dude. Dude, wake up.', 1.05, .85); }
-  if (step(8)) { say('"Come on, let\'s go."', 4, true); speak("Come on, let's go.", 1, .85); }
+  if (G.endStep >= 7 && !G.saidWake && e > ENDING[6] + .9) { G.saidWake = true; say('"Dude. Dude, wake up."', 2.2, true); babble('Dude. Dude, wake up.', friendVoice(), 135); }
+  if (step(8)) { say('"Come on, let\'s go."', 4, true); babble("Come on, let's go.", friendVoice(), 130); }
   if (friend && G.endStep >= 7) { const fu = friend.userData; fu.head.rotation.x = .25 + Math.sin(e * 1.3) * .05; fu.arms[1].sh.rotation.x = .2 + (G.endStep < 9 ? Math.max(0, Math.sin(e * 6)) * .5 : 0); }
   if (G.endStep >= 9 && G.endStep < 11) {
     const k = ease(clamp((e - ENDING[8]) / 1.5, 0, 1)), m = G.morning;
@@ -2661,14 +2670,28 @@ function updateEnding(dt) {
   if (step(12)) showScore();
 }
 const ENDING = [0, 1.2, 1.8, 3.4, 3.85, 4.75, 6.5, 7.5, 9.8, 12.3, 13.1, 14.4];
-function speak(text, rate = 1, pitch = .9) {
-  try {
-    if (!('speechSynthesis' in window)) return;
-    const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = pitch; u.volume = SET.vol;
-    const vs = speechSynthesis.getVoices(), v = vs.find(x => /^en/i.test(x.lang) && /male|daniel|david|alex|guy|fred|george/i.test(x.name)) || vs.find(x => /^en/i.test(x.lang));
-    if (v) u.voice = v;
-    speechSynthesis.cancel(); speechSynthesis.speak(u);
-  } catch (e) {}
+const friendVoice = () => friend ? { x: friend.position.x, y: 1.6, z: friend.position.z } : null;
+const VOWELS = [[730, 1090], [530, 1840], [270, 2290], [570, 840], [300, 870], [660, 1720]];
+function babble(text, where, base = 128) {
+  if (!AC) return;
+  const words = text.replace(/[^a-z' ]/gi, ' ').split(/\s+/).filter(Boolean);
+  let at = AC.currentTime + .05, n = 0;
+  const total = words.reduce((k, w) => k + Math.max(1, (w.match(/[aeiouy]+/gi) || []).length), 0);
+  for (const w of words) {
+    const syl = Math.max(1, (w.match(/[aeiouy]+/gi) || []).length);
+    for (let i = 0; i < syl; i++, n++) {
+      const dur = rnd(.08, .15), [f1, f2] = pick(VOWELS);
+      // pitch drifts down across the sentence and lifts a little on stressed syllables
+      const f0 = base * (1.12 - .22 * n / Math.max(1, total)) * (i === 0 ? 1.08 : 1) * rnd(.96, 1.04);
+      const src = AC.createOscillator(); src.type = 'sawtooth'; src.frequency.setValueAtTime(f0, at); src.frequency.linearRampToValueAtTime(f0 * rnd(.9, 1.05), at + dur);
+      const gn = AC.createGain(); gn.gain.setValueAtTime(.0001, at); gn.gain.exponentialRampToValueAtTime(vol(where, .5), at + .02); gn.gain.exponentialRampToValueAtTime(.0001, at + dur + .04);
+      for (const [f, q] of [[f1, 7], [f2, 9]]) { const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f * rnd(.95, 1.05); bp.Q.value = q; src.connect(bp); bp.connect(gn); }
+      out(gn, where); src.start(at); src.stop(at + dur + .06);
+      if (Math.random() < .7) burst({ type: 'bandpass', f: rnd(2500, 5000), q: 2, dur: .035, g: .08, at: at - AC.currentTime - .01, where });
+      at += dur + rnd(.01, .04);
+    }
+    at += rnd(.08, .16);
+  }
 }
 function showScore() {
   state = 'score';
@@ -2888,6 +2911,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get state() { return state; }, P, CR, startEnding: () => startEnding(), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
