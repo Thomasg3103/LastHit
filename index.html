@@ -2790,7 +2790,6 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
-if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, noiseAt: (r) => noise(P.x, P.z, 14, r), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
