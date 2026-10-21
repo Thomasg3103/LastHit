@@ -38,8 +38,10 @@ html,body{height:100%;margin:0;background:var(--void);color:var(--ash);overflow:
 #hud.holding .bar.breath{box-shadow:0 0 12px rgba(159,195,230,.5)}
 #hud[data-lvl="3"] .bar.high i{background:#c8d85a}
 #hud[data-lvl="4"] .bar.high i{background:var(--ember)}
-#hud[data-lvl="5"] .bar.high i{background:var(--blood);animation:flick .25s steps(2) infinite}
-#hud[data-lvl="5"] .meters{animation:jit .18s steps(3) infinite}
+#hud[data-lvl="4"] #highLbl{color:var(--ember)}
+#hud[data-lvl="5"] .bar.high i{background:#e0542a}
+#hud[data-lvl="6"] .bar.high i{background:var(--blood);animation:flick .25s steps(2) infinite}
+#hud[data-lvl="6"] .meters{animation:jit .18s steps(3) infinite}
 #sensor{display:flex;align-items:center;justify-content:space-between;color:var(--smoke);line-height:1}
 #sensor .bars{display:flex;gap:3px;align-items:flex-end;height:18px}
 #sensor .bars i{display:block;width:7px;background:rgba(207,213,200,.13);transition:background .15s}
@@ -136,6 +138,19 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 .pen-btn.hard .led{background:var(--blood);box-shadow:0 0 10px var(--blood)}
 .pen-btn.hard:hover{box-shadow:inset 0 0 0 1px var(--ash),0 0 34px rgba(195,25,44,.35)}
 .fine strong{color:var(--ash);font-weight:400}
+.howto{max-width:40rem}
+.hw-slide{margin:0;display:grid;gap:12px}
+.hw-slide svg{display:block;width:100%;height:auto;max-height:44vh;border-radius:10px;border:1px solid rgba(207,213,200,.16);background:#050605}
+.hw-slide h3{margin:0;font-family:var(--f-display);font-weight:400;font-size:clamp(1.6rem,6vw,2.3rem);line-height:1;text-shadow:2px 0 rgba(195,25,44,.6),-2px 0 rgba(134,227,109,.4)}
+.hw-slide p{margin:0;line-height:1.5;max-width:60ch}
+.hw-slide .keys{font-family:var(--f-hud);font-size:19px;letter-spacing:.06em;color:var(--ember)}
+.hw-dots{display:flex;gap:6px}
+.hw-dots i{width:22px;height:4px;border-radius:2px;background:rgba(207,213,200,.2)}
+.hw-dots i.on{background:var(--leaf)}
+.touch-only{display:none}
+body.touch .touch-only{display:inline}
+body.touch .desk-only{display:none}
+@media (prefers-reduced-motion:reduce){.hw-slide svg *{animation:none!important}}
 .board-wrap{display:grid;gap:10px}
 .board-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
 .tabs{display:flex;gap:6px}
@@ -180,7 +195,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
 @keyframes jit{0%,100%{transform:none}33%{transform:translate(1px,-1px)}66%{transform:translate(-2px,1px)}}
 @keyframes led{0%,100%{opacity:.35}50%{opacity:1}}
 @keyframes whisp{0%{opacity:0}10%{opacity:.9}30%{opacity:.2}45%{opacity:.8}100%{opacity:0;transform:scale(1.15)}}
-@media (prefers-reduced-motion:reduce){h1,.pen-btn .led,#hud[data-lvl="5"] .meters{animation:none}}
+@media (prefers-reduced-motion:reduce){h1,.pen-btn .led,#hud[data-lvl="6"] .meters{animation:none}}
 </style>
 </head>
 <body>
@@ -255,11 +270,11 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
     <ul class="rules">
       <li>It's blind. It hunts by <strong>smell and sound</strong>. Every hit leaves a cloud it can follow. Running, slamming doors and your ringing phone bring it running.</li>
       <li>Hold your breath when it's in the room. After a couple of silent seconds it loses you and leaves. Run out of air and you'll cough.</li>
-      <li>Past <strong>60% high</strong>, a door you came in through won't lead back where it did. The house rearranges itself.</li>
+      <li>Once you're <strong>Geeked</strong> (60% high), a door you came in through won't lead back where it did. The house rearranges itself.</li>
       <li>The living room is safe. It never comes in, and the house resets when you go back.</li>
       <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
       <li>Pick up snacks and eat them when you need to. Eating brings your high down, but chips and soda are loud.</li>
-      <li>Empty bottles and cans make good decoys. Hiding spots make good hiding spots.</li>
+      <li>Empty bottles and cans make good decoys. Climb into a wardrobe, under a bed or into a bathtub and it can't find you, unless it was close enough to hear you get in.</li>
       <li>Every item you find is a save point, but each one leaves you a little higher for good. Hit 100% and you green out.</li>
     </ul>
     <div class="modes">
@@ -272,7 +287,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <ol class="board" id="boardTitle"></ol>
     </section>
     <details class="more" id="achBox"><summary>Achievements <span id="achCount">0/8</span></summary><ul class="ach" id="achList"></ul></details>
-    <p class="fine"><button class="link-btn" id="settingsBtn" type="button">Settings</button> · mouse sensitivity, volume, reduce motion</p>
+    <p class="fine"><button class="link-btn" id="howtoBtn" type="button">How to play</button> · <button class="link-btn" id="settingsBtn" type="button">Settings</button> · mouse sensitivity, volume, reduce motion</p>
     <p class="fine"><strong>Wake up</strong> is the normal game: die and you wake on the couch with your items kept. <strong>One life</strong> has no couch. Die once and the run is over.</p>
     <p class="fine">Headphones on. Older versions: <a href="maze.html">Last Hit 3D</a> and <a href="classic.html">Last Hit Classic</a>.</p>
   </div>
@@ -311,6 +326,66 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       </dl>
       <div class="modes" style="margin-top:20px"><button class="pen-btn" id="profBack" type="button"><span class="led"></span>Back</button><button class="pen-btn hard" id="signOut" type="button"><span class="led"></span>Sign out</button></div>
     </div>
+  </div>
+</section>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="crt" viewBox="-30 -100 60 100" overflow="visible"><g fill="#0c0d0c" stroke="#6a1c1c" stroke-width="1.1"><ellipse cx="0" cy="-86" rx="8" ry="11"/><path d="M-7-72Q-13-44-7-24L-12 0h6l6-20 6 20h6l-5-24q6-20 0-48z"/></g><g fill="none" stroke="#0c0d0c" stroke-width="3.2" stroke-linecap="round"><path d="M-8-68Q-22-42-21-12"/><path d="M8-68Q22-42 21-12"/></g><path d="M-4-80h8" stroke="#c3192c" stroke-width="1.5"/></symbol></defs></svg>
+<section class="overlay" id="howto" hidden>
+  <div class="card howto">
+    <p class="eyebrow">How to play · <span id="hwStep">1 / 6</span></p>
+    <div class="hw-stage">
+      <figure class="hw-slide">
+        <svg viewBox="0 0 320 180" role="img" aria-label="A pen lights up a dark room"><defs><radialGradient id="hwL"><stop offset="0" stop-color="#ffe2c4" stop-opacity=".5"/><stop offset="1" stop-color="#ffe2c4" stop-opacity="0"/></radialGradient><clipPath id="hwC1"><circle cx="160" cy="140" r="6"><animate attributeName="r" values="6;6;150;150;6" keyTimes="0;.35;.5;.82;1" dur="5s" repeatCount="indefinite"/></circle></clipPath></defs>
+  <g clip-path="url(#hwC1)"><rect width="320" height="180" fill="#3a352c"/><path d="M0 110L60 80h200l60 30v70H0z" fill="#4a3a2a"/><rect x="60" y="20" width="200" height="60" fill="#3c4a39"/><rect x="140" y="34" width="34" height="46" fill="#2a1d14"/><rect x="84" y="60" width="60" height="20" rx="4" fill="#5a1e1e"/><rect x="200" y="56" width="40" height="24" fill="#111"/><circle cx="110" cy="130" r="3" fill="#b01818"/><circle cx="230" cy="140" r="3" fill="#b01818"/></g>
+  <circle cx="160" cy="140" r="90" fill="url(#hwL)"><animate attributeName="opacity" values="0;0;1;.6;0" keyTimes="0;.35;.5;.82;1" dur="5s" repeatCount="indefinite"/></circle>
+  <g transform="translate(212 150) rotate(-35)"><rect x="-5" y="-40" width="10" height="56" rx="3" fill="#2d312d" stroke="#8a8a80" stroke-width=".6"/><rect x="-5.5" y="-22" width="11" height="10" fill="#8a6420"/><circle cx="0" cy="14" r="3.4" fill="#ffae4a"><animate attributeName="opacity" values=".2;1;1;.2;.2" keyTimes="0;.05;.35;.4;1" dur="5s" repeatCount="indefinite"/></circle></g>
+  <g fill="#cfd5c8" opacity=".0"><circle cx="190" cy="120" r="8"/><circle cx="178" cy="108" r="11"/><circle cx="166" cy="96" r="13"/><animate attributeName="opacity" values="0;0;.35;0;0" keyTimes="0;.35;.45;.7;1" dur="5s" repeatCount="indefinite"/></g></svg>
+        <figcaption><h3>Your pen is your only light</h3><p>It's pitch black. Hold to take a hit, let go to exhale, and the room lights up for a while. The longer the pull, the more you see.</p><p class="keys"><span class="desk-only">Hold SPACE or click</span><span class="touch-only">Hold HIT</span></p></figcaption>
+      </figure>
+      <figure class="hw-slide" hidden>
+        <svg viewBox="0 0 320 180" role="img" aria-label="The creature follows a smoke trail while the sensor fills up"><rect width="320" height="180" fill="#0b0c0b"/><path d="M0 150h320v30H0z" fill="#1c1a16"/>
+  <g fill="#cfd5c8" opacity=".25"><circle cx="70" cy="128" r="12"/><circle cx="130" cy="122" r="14"/><circle cx="190" cy="126" r="12"/></g>
+  <g><use href="#crt" width="60" height="100" x="-30" y="-100"><animateTransform attributeName="transform" type="translate" values="300 152;220 152;120 152;120 152" keyTimes="0;.4;.8;1" dur="5s" repeatCount="indefinite"/></use></g>
+  <g transform="translate(18 16)"><text x="0" y="10" fill="#7f8a7b" font-family="VT323, monospace" font-size="13">SENSOR</text>
+  <g transform="translate(58 0)"><rect x="0" y="9" width="6" height="5" fill="#cfd5c8"/><rect x="9" y="6" width="6" height="8" fill="#cfd5c8"><animate attributeName="opacity" values=".15;1;1" keyTimes="0;.2;1" dur="5s" repeatCount="indefinite"/></rect><rect x="18" y="3" width="6" height="11" fill="#ffae4a"><animate attributeName="opacity" values=".15;.15;1;1" keyTimes="0;.4;.45;1" dur="5s" repeatCount="indefinite"/></rect><rect x="27" y="0" width="6" height="14" fill="#c3192c"><animate attributeName="opacity" values=".15;.15;1;1" keyTimes="0;.6;.65;1" dur="5s" repeatCount="indefinite"/></rect><rect x="36" y="-3" width="6" height="17" fill="#c3192c"><animate attributeName="opacity" values=".15;.15;1;1" keyTimes="0;.78;.8;1" dur="5s" repeatCount="indefinite"/></rect></g></g></svg>
+        <figcaption><h3>It's blind. It smells and hears you</h3><p>Every hit leaves a cloud it can follow, and running, slamming doors and your phone ringing bring it over. Watch the sensor: five bars means it's right on you.</p><p class="keys"><span class="desk-only">Sensor: top left</span><span class="touch-only">Sensor: top left</span></p></figcaption>
+      </figure>
+      <figure class="hw-slide" hidden>
+        <svg viewBox="0 0 320 180" role="img" aria-label="Holding your breath makes the creature give up and walk away"><rect width="320" height="180" fill="#0b0c0b"/><path d="M0 150h320v30H0z" fill="#1c1a16"/><rect x="262" y="70" width="40" height="80" fill="#2a1d14" stroke="#4a3626"/>
+  <use href="#crt" width="60" height="100" x="-30" y="-100"><animateTransform attributeName="transform" type="translate" values="150 152;150 152;282 152;282 152" keyTimes="0;.45;.85;1" dur="5s" repeatCount="indefinite"/><animate attributeName="opacity" values="1;1;1;0;0" keyTimes="0;.8;.86;.9;1" dur="5s" repeatCount="indefinite"/></use>
+  <g transform="translate(18 16)"><text x="0" y="10" fill="#7f8a7b" font-family="VT323, monospace" font-size="13">BREATH</text><rect x="58" y="3" width="100" height="7" fill="none" stroke="#7f8a7b" stroke-width=".6"/><rect x="58" y="3" width="100" height="7" fill="#9fc3e6"><animate attributeName="width" values="100;100;40;40;100" keyTimes="0;.1;.6;.85;1" dur="5s" repeatCount="indefinite"/></rect></g>
+  <text x="160" y="40" text-anchor="middle" fill="#cfd5c8" font-family="Special Elite, monospace" font-size="14" opacity="0">"It lost me."<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.5;.55;.85;1" dur="5s" repeatCount="indefinite"/></text></svg>
+        <figcaption><h3>Five bars? Hold your breath</h3><p>It only comes for you when it's that close. Hold your breath and stay silent, and after a few seconds it loses you and leaves. Run out of air and you'll cough.</p><p class="keys"><span class="desk-only">Hold SHIFT</span><span class="touch-only">Hold HOLD</span></p></figcaption>
+      </figure>
+      <figure class="hw-slide" hidden>
+        <svg viewBox="0 0 320 180" role="img" aria-label="Seen through wardrobe slats, the creature walks past"><rect width="320" height="180" fill="#2a2620"/><path d="M0 140h320v40H0z" fill="#3a3028"/>
+  <use href="#crt" width="60" height="100" x="-30" y="-100"><animateTransform attributeName="transform" type="translate" values="-30 142;150 142;160 142;350 142" keyTimes="0;.4;.6;1" dur="5s" repeatCount="indefinite"/></use>
+  <g fill="#050605"><rect x="0" y="0" width="34" height="180"/><rect x="46" y="0" width="34" height="180"/><rect x="92" y="0" width="34" height="180"/><rect x="138" y="0" width="34" height="180"/><rect x="184" y="0" width="34" height="180"/><rect x="230" y="0" width="34" height="180"/><rect x="276" y="0" width="44" height="180"/></g>
+  <rect width="320" height="180" fill="none" stroke="#000" stroke-width="40" opacity=".6"/></svg>
+        <figcaption><h3>Hide where it can't reach you</h3><p>Wardrobes, under beds and bathtubs. Climb in and it can't find you. It searches and moves on, unless it was close enough to hear you get in.</p><p class="keys"><span class="desk-only">E to hide and climb out</span><span class="touch-only">Tap the prompt to hide</span></p></figcaption>
+      </figure>
+      <figure class="hw-slide" hidden>
+        <svg viewBox="0 0 320 180" role="img" aria-label="Three glowing items and the front door"><defs><radialGradient id="hwG"><stop offset="0" stop-color="#d8e8ff" stop-opacity=".55"/><stop offset="1" stop-color="#d8e8ff" stop-opacity="0"/></radialGradient></defs><rect width="320" height="180" fill="#0b0c0b"/><path d="M0 140h320v40H0z" fill="#1c1a16"/>
+  <g><circle cx="60" cy="140" r="24" fill="url(#hwG)"><animate attributeName="opacity" values=".5;1;.5" dur="2s" repeatCount="indefinite"/></circle><rect x="50" y="135" width="20" height="9" rx="2" fill="#111" stroke="#8fb4ff"/></g>
+  <g><circle cx="125" cy="142" r="24" fill="url(#hwG)"><animate attributeName="opacity" values="1;.5;1" dur="2s" repeatCount="indefinite"/></circle><circle cx="119" cy="141" r="5" fill="none" stroke="#c8a040" stroke-width="2"/><path d="M124 141h12M131 141v4" stroke="#c8a040" stroke-width="2"/></g>
+  <g><circle cx="190" cy="140" r="26" fill="url(#hwG)"><animate attributeName="opacity" values=".6;1;.6" dur="2.4s" repeatCount="indefinite"/></circle><path d="M176 144l14-10 14 10-4 3h-20z" fill="#3e4a2a"/></g>
+  <g transform="translate(250 50)"><rect width="56" height="90" fill="#4a3626" stroke="#2a1d14" stroke-width="3"/><rect x="6" y="10" width="18" height="22" fill="#1e2c40"/><rect x="32" y="10" width="18" height="22" fill="#1e2c40"/><circle cx="25" cy="52" r="2" fill="#b08a40"/><circle cx="31" cy="52" r="2" fill="#b08a40"/></g></svg>
+        <figcaption><h3>Phone, keys, jacket. Then the front door</h3><p>They're hidden around the house, and they glow faintly. Each one you find is a save point. The front door only opens once you have all three.</p><p class="keys"><span class="desk-only">Walk over items to pick them up · E opens doors</span><span class="touch-only">Walk over items · walk into doors</span></p></figcaption>
+      </figure>
+      <figure class="hw-slide" hidden>
+        <svg viewBox="0 0 320 180" role="img" aria-label="The high meter fills to Geeked and the rooms shuffle"><rect width="320" height="180" fill="#0b0c0b"/>
+  <g transform="translate(20 22)"><text x="0" y="0" fill="#7f8a7b" font-family="VT323, monospace" font-size="14">HIGH</text><rect x="0" y="8" width="280" height="9" fill="none" stroke="#7f8a7b" stroke-width=".6"/><rect x="0" y="8" width="20" height="9" fill="#86e36d"><animate attributeName="width" values="20;170;170;20" keyTimes="0;.45;.85;1" dur="6s" repeatCount="indefinite"/><animate attributeName="fill" values="#86e36d;#ffae4a;#ffae4a;#86e36d" keyTimes="0;.45;.85;1" dur="6s" repeatCount="indefinite"/></rect>
+  <text x="280" y="0" text-anchor="end" fill="#ffae4a" font-family="VT323, monospace" font-size="14" opacity="0">GEEKED 60%<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.42;.45;.85;1" dur="6s" repeatCount="indefinite"/></text></g>
+  <g font-family="VT323, monospace" font-size="13" fill="#cfd5c8" text-anchor="middle">
+  <g><rect x="40" y="70" width="70" height="44" fill="#1c1a16" stroke="#4a4438"/><text x="75" y="96">KITCHEN</text><animateTransform attributeName="transform" type="translate" values="0 0;0 0;170 0;170 0;0 0" keyTimes="0;.5;.6;.85;1" dur="6s" repeatCount="indefinite"/></g>
+  <g><rect x="210" y="70" width="70" height="44" fill="#1c1a16" stroke="#4a4438"/><text x="245" y="96">GARAGE</text><animateTransform attributeName="transform" type="translate" values="0 0;0 0;-170 0;-170 0;0 0" keyTimes="0;.5;.6;.85;1" dur="6s" repeatCount="indefinite"/></g>
+  <g><rect x="125" y="70" width="70" height="44" fill="#1c1a16" stroke="#86e36d"/><text x="160" y="96">YOU</text></g></g>
+  <text x="160" y="152" text-anchor="middle" fill="#cfd5c8" font-family="Special Elite, monospace" font-size="13" opacity="0">"This wasn't supposed to be here."<animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;.6;.64;.85;1" dur="6s" repeatCount="indefinite"/></text></svg>
+        <figcaption><h3>Stay sober-ish</h3><p>Every hit gets you higher. At 60% you're Geeked and the house starts rearranging: doors stop leading where they did. Snacks bring you down. Hit 100% and you green out.</p><p class="keys"><span class="desk-only">Q eats a snack · G throws a bottle · T phone torch</span><span class="touch-only">Tap the icons bottom-left</span></p></figcaption>
+      </figure>
+    </div>
+    <div class="hw-dots" id="hwDots" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+    <div class="modes"><button class="pen-btn hard" id="hwBack" type="button"><span class="led"></span>Back</button><button class="pen-btn" id="hwNext" type="button"><span class="led"></span>Next</button><button class="link-btn" id="hwSkip" type="button">Skip</button></div>
   </div>
 </section>
 
@@ -588,7 +663,15 @@ function textTex(text, w = 256, h = 64, color = '#d9d2bf', size = 34, bg = null)
   return ctex(w, h, (g) => { if (bg) { g.fillStyle = bg; g.fillRect(0, 0, w, h); } g.fillStyle = color; g.font = `${size}px 'Special Elite', 'Courier New', monospace`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, w / 2, h / 2); });
 }
 // creature material has a faint glow so the shape reads as a darker-than-dark silhouette
-const figMat = new THREE.MeshLambertMaterial({ color: 0x060606, emissive: 0x0b0b0b });
+const creatureSkin = ctex(128, 128, (g, w, h) => {
+  g.fillStyle = '#1a1c19'; g.fillRect(0, 0, w, h);
+  for (let i = 0; i < 1800; i++) { g.fillStyle = `rgba(${rnd(18, 55) | 0},${rnd(22, 50) | 0},${rnd(18, 40) | 0},${rnd(.25, .55)})`; g.fillRect(Math.random() * w, Math.random() * h, rnd(1, 3), rnd(1, 3)); }
+  g.strokeStyle = 'rgba(80,18,28,.5)'; g.lineWidth = 1;
+  for (let i = 0; i < 16; i++) { g.beginPath(); let x = Math.random() * w, y = Math.random() * h; g.moveTo(x, y); for (let k = 0; k < 7; k++) { x += rnd(-10, 10); y += rnd(4, 12); g.lineTo(x, y); } g.stroke(); }
+});
+const figMat = new THREE.MeshLambertMaterial({ color: 0x5a5a5a, map: creatureSkin, emissive: 0x0b0b0b });
+const boneMat = new THREE.MeshLambertMaterial({ color: 0x3a3630, emissive: 0x0a0908 });
+const clawMat = new THREE.MeshLambertMaterial({ color: 0x8a8070, emissive: 0x111111 });
 const mouthMat = new THREE.MeshBasicMaterial({ color: 0x1a0003 });
 const toothMat = new THREE.MeshLambertMaterial({ color: 0xd8d2bf, emissive: 0x111111 });
 
@@ -1020,12 +1103,11 @@ function buildDoor(r, dr) {
     B(.04, .14, .04, MAT.brass, -.06, 1.05, .08, g); B(.04, .14, .04, MAT.brass, .06, 1.05, .08, g);
     const p = new THREE.Vector3(0, 1.8, .5); g.updateMatrixWorld(true); const w = g.localToWorld(p);
     addLight(r, w.x, w.y, w.z, 0x7f9cc8, 1.4, 4, 'door');
-    doorOutline(r, g, .88, 2.38); dr.front = true; return;
+    dr.front = true; return;
   }
   const diff = (NODES[dr.to].floor ?? 0) - (r.node.floor ?? 0);
   for (const s of [-1, 1]) B(.08, 2.15, .12, MAT.trim, s * .5, 1.075, 0, g);
   B(1.08, .08, .12, MAT.trim, 0, 2.17, 0, g);
-  doorOutline(r, g, .55, 2.22);
   if (diff !== 0) {
     stairwell(g, diff > 0, MAT[(STYLE[r.node.type] || STYLE.storage)[0]]);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(.6, .15), new THREE.MeshStandardMaterial({ map: textTex(diff > 0 ? 'STAIRS  UP' : 'STAIRS  DOWN', 256, 64, '#d9d2bf', 30, '#1a1612'), roughness: .8 }));
@@ -1201,45 +1283,119 @@ function disposeRoom() {
 
 /* ================= characters ================= */
 function makeCreature() {
-  const g = new THREE.Group(), body = new THREE.Group(); body.rotation.x = .18; g.add(body);
-  const torso = mk(new THREE.CylinderGeometry(.16, .27, 1.25, 7), figMat, 0, 1.3, 0, body);
-  for (const s of [-1, 1]) mk(new THREE.CylinderGeometry(.055, .03, .82, 5), figMat, s * .11, .41, 0, body);
-  mk(new THREE.CylinderGeometry(.04, .07, .3, 5), figMat, 0, 1.98, .04, body);
+  const g = new THREE.Group(), body = new THREE.Group(); body.rotation.x = .2; g.add(body);
+  const cap = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 8), M = figMat;
+  // digitigrade legs
+  const legs = [];
+  for (const s of [-1, 1]) {
+    const hip = new THREE.Group(); hip.position.set(s * .13, .96, 0); body.add(hip); legs.push(hip);
+    mk(cap(.075, .4), M, 0, -.22, .07, hip).rotation.x = -.38;
+    const knee = new THREE.Group(); knee.position.set(0, -.46, .16); hip.add(knee);
+    mk(cap(.052, .36), M, 0, -.2, -.09, knee).rotation.x = .5;
+    const ankle = new THREE.Group(); ankle.position.set(0, -.42, -.18); knee.add(ankle);
+    mk(new THREE.BoxGeometry(.09, .05, .24), M, 0, -.04, .08, ankle);
+    for (let c = -1; c <= 1; c++) { const cl = mk(new THREE.ConeGeometry(.013, .09, 5), clawMat, c * .03, -.05, .23, ankle); cl.rotation.x = Math.PI / 2; }
+  }
+  // hollow torso: narrow waist, flared ribcage
+  const prof = [[0, 0], [.13, .01], [.15, .09], [.1, .3], [.095, .42], [.16, .6], [.21, .78], [.2, .93], [.13, 1.04], [.02, 1.08]].map(([x, y]) => new THREE.Vector2(x, y));
+  const torso = mk(new THREE.LatheGeometry(prof, 14), M, 0, .9, 0, body); torso.scale.set(1.15, 1, .78);
+  for (let i = 0; i < 5; i++) { const rib = mk(new THREE.TorusGeometry(.215 - Math.abs(i - 2) * .012, .011, 5, 18), boneMat, 0, 1.52 + i * .075, 0, body); rib.rotation.x = Math.PI / 2; rib.scale.set(1.13, .8, 1); }
+  for (let i = 0; i < 8; i++) S(.028 - i * .001, boneMat, 0, 1.12 + i * .11, -.15 + Math.sin(i * .5) * .01, body);
+  for (const s of [-1, 1]) S(.07, M, s * .26, 1.86, 0, body);
+  // long arms: shoulder -> elbow -> hand with hooked claws
   const arms = [];
   for (const s of [-1, 1]) {
-    const piv = new THREE.Group(); piv.position.set(s * .23, 1.85, 0); piv.rotation.z = s * .1;
-    mk(new THREE.CylinderGeometry(.032, .018, 1.55, 5), figMat, 0, -.77, 0, piv);
-    for (let f = -1; f <= 1; f++) { const fin = mk(new THREE.CylinderGeometry(.008, .004, .26, 3), figMat, f * .022, -1.66, 0, piv); fin.rotation.z = f * .25; }
-    body.add(piv); arms.push(piv);
+    const piv = new THREE.Group(); piv.position.set(s * .28, 1.84, 0); piv.rotation.z = s * .12; body.add(piv);
+    mk(cap(.045, .55), M, 0, -.33, 0, piv);
+    const el = new THREE.Group(); el.position.set(0, -.68, 0); el.rotation.x = -.25; piv.add(el);
+    mk(cap(.035, .58), M, 0, -.34, 0, el);
+    const hand = new THREE.Group(); hand.position.set(0, -.7, 0); el.add(hand);
+    S(.05, M, 0, 0, 0, hand).scale.set(1, 1.3, .7);
+    for (let f = -1.5; f <= 1.5; f++) {
+      const fg = new THREE.Group(); fg.position.set(f * .022, -.04, 0); fg.rotation.z = f * .12; hand.add(fg);
+      mk(cap(.009, .14), M, 0, -.09, 0, fg);
+      const cl = mk(new THREE.ConeGeometry(.01, .12, 5), clawMat, 0, -.22, .02, fg); cl.rotation.x = Math.PI + .35;
+    }
+    arms.push(piv);
   }
-  const headPivot = new THREE.Group(); headPivot.position.set(0, 2.1, .1); body.add(headPivot);
-  const head = mk(new THREE.SphereGeometry(.2, 12, 10), figMat, 0, .1, .03, headPivot); head.scale.set(.85, 1.3, 1.05);
-  const mouth = new THREE.Group(); mouth.position.set(0, .0, .2); headPivot.add(mouth);
-  const hole = new THREE.Mesh(new THREE.CircleGeometry(.07, 14), mouthMat); hole.scale.set(1, 1.6, 1); mouth.add(hole);
-  for (let i = 0; i < 7; i++) { const tth = mk(new THREE.ConeGeometry(.009, .034, 4), toothMat, -.045 + i * .015, .085, .006, mouth); tth.rotation.x = Math.PI; const b = tth.clone(); b.position.y = -.085; b.rotation.x = 0; mouth.add(b); }
-  for (const s of [-1, 1]) { const n = new THREE.Mesh(new THREE.CircleGeometry(.012, 6), mouthMat); n.position.set(s * .025, .16, .2); headPivot.add(n); }
-  g.userData = { body, headPivot, mouth, arms, seed: Math.random() * 10 };
-  g.traverse(o => { if (o.isMesh && o.material === figMat) o.castShadow = true; });
+  // neck and an eyeless, elongated skull with a hinged jaw
+  mk(cap(.05, .22), M, 0, 2.0, .06, body).rotation.x = .5;
+  const headPivot = new THREE.Group(); headPivot.position.set(0, 2.13, .14); body.add(headPivot);
+  const skull = mk(new THREE.SphereGeometry(.17, 18, 14), M, 0, .06, .02, headPivot); skull.scale.set(.86, 1.12, 1.28);
+  mk(new THREE.BoxGeometry(.2, .035, .09), boneMat, 0, .13, .17, headPivot).rotation.x = -.2;
+  for (const s of [-1, 1]) {
+    const sock = new THREE.Mesh(new THREE.SphereGeometry(.035, 10, 8), mouthMat); sock.position.set(s * .062, .08, .185); sock.scale.set(1, .7, .4); headPivot.add(sock);
+    S(.03, boneMat, s * .1, .0, .14, headPivot).scale.set(1, .7, 1.4);
+    const sl = new THREE.Mesh(new THREE.BoxGeometry(.008, .04, .01), mouthMat); sl.position.set(s * .016, .03, .225); sl.rotation.z = s * .3; headPivot.add(sl);
+  }
+  const mouth = new THREE.Group(); mouth.position.set(0, -.04, .17); headPivot.add(mouth);
+  const hole = new THREE.Mesh(new THREE.CircleGeometry(.075, 16), mouthMat); hole.position.z = .04; hole.scale.set(1, .6, 1); mouth.add(hole);
+  for (let i = 0; i < 9; i++) { const th = mk(new THREE.ConeGeometry(.008, .038, 4), toothMat, -.06 + i * .015, .0, .045 + Math.cos((i - 4) * .3) * .01, mouth); th.rotation.x = Math.PI; }
+  const jaw = new THREE.Group(); jaw.position.set(0, -.01, -.06); mouth.add(jaw);
+  mk(new THREE.BoxGeometry(.14, .03, .14), M, 0, -.03, .07, jaw);
+  for (let i = 0; i < 8; i++) mk(new THREE.ConeGeometry(.008, .034, 4), toothMat, -.052 + i * .015, -.0, .125, jaw);
+  g.userData = { body, headPivot, mouth, jaw, hole, arms, legs, seed: Math.random() * 10 };
+  g.traverse(o => { if (o.isMesh && o.material !== mouthMat) o.castShadow = true; });
   return g;
 }
+// 0 = closed, 1 = wide open
+function setMouth(f, open) { const u = f.userData; u.jaw.rotation.x = open * .85; u.hole.scale.set(1, .6 + open * 1.6, 1); u.hole.position.y = -open * .05; }
 function animCreature(f, x, z, yaw, moving, sniff, y = 0) {
   const u = f.userData;
   f.position.set(x, y + Math.abs(Math.sin(t * 4 + u.seed)) * .04 * moving, z);
   f.rotation.y = yaw;
   const sw = Math.sin(t * 5 + u.seed) * (.06 + .45 * moving);
   u.arms[0].rotation.x = sw; u.arms[1].rotation.x = -sw;
+  u.legs[0].rotation.x = -sw * .7; u.legs[1].rotation.x = sw * .7;
+  u.body.rotation.x = .2 + Math.sin(t * 1.3 + u.seed) * .03;
   u.headPivot.rotation.x = sniff ? -.45 + Math.sin(t * 11) * .08 : .15 + Math.sin(t * .6 + u.seed) * .05;
   u.headPivot.rotation.z = Math.sin(t * .7 + u.seed) * .15 + (Math.sin(t * 23 + u.seed) > .96 ? .5 : 0);
+  if (sniff) setMouth(f, .15 + Math.max(0, Math.sin(t * 9)) * .15);
 }
 function makeFriend() {
-  const g = new THREE.Group();
-  for (const s of [-1, 1]) B(.13, .85, .15, MAT.jeans, s * .1, .43, 0, g);
-  B(.42, .6, .24, MAT.hoodie, 0, 1.15, 0, g);
-  for (const s of [-1, 1]) { const a = B(.1, .58, .11, MAT.hoodie, s * .27, 1.12, .06, g); a.rotation.x = -.5; }
-  S(.12, MAT.skin, 0, 1.6, 0, g); B(.25, .1, .25, MAT.hair, 0, 1.71, -.02, g);
-  const j = B(.3, .5, .06, MAT.jacket, -.28, 1.0, .25, g); j.rotation.x = -.3;
-  B(.07, .012, .14, MAT.black, .27, .9, .3, g);
-  const k = ITEM_MESH.keys(); k.position.set(.3, .85, .28); k.rotation.x = 1.2; g.add(k);
+  const g = new THREE.Group(), cap = (r, l) => new THREE.CapsuleGeometry(r, l, 4, 12);
+  const shoe = std({ color: 0xe6e2da, roughness: .6 }), sole = std({ color: 0x2a2a2a, roughness: .8 }), hoodDark = std({ color: 0x6e211c, roughness: .9 });
+  // legs + trainers
+  for (const s of [-1, 1]) {
+    mk(cap(.075, .62), MAT.jeans, s * .1, .5, 0, g);
+    mk(new THREE.BoxGeometry(.11, .07, .26), shoe, s * .1, .05, .04, g); mk(new THREE.BoxGeometry(.115, .02, .27), sole, s * .1, .01, .04, g);
+  }
+  // hoodie body, pocket, drawstrings and hood
+  const torso = mk(cap(.19, .36), MAT.hoodie, 0, 1.17, 0, g); torso.scale.set(1.08, 1, .72);
+  mk(new THREE.BoxGeometry(.26, .1, .02), hoodDark, 0, 1.03, .14, g);
+  for (const s of [-1, 1]) mk(new THREE.CylinderGeometry(.005, .005, .14, 4), MAT.white, s * .035, 1.33, .14, g);
+  const hood = mk(new THREE.SphereGeometry(.14, 14, 8, 0, TAU, 0, Math.PI / 2), MAT.hoodie, 0, 1.43, -.09, g); hood.rotation.x = -1.1; hood.scale.set(1, 1, .7);
+  // arms: one forearm draped with your jacket, the other holding your phone, keys hanging off a finger
+  const arm = (s, bend) => {
+    const sh = new THREE.Group(); sh.position.set(s * .25, 1.4, 0); sh.rotation.set(.2, 0, s * .08); g.add(sh);
+    mk(cap(.055, .24), MAT.hoodie, 0, -.16, 0, sh);
+    const el = new THREE.Group(); el.position.set(0, -.32, 0); el.rotation.x = bend; sh.add(el);
+    mk(cap(.048, .2), MAT.hoodie, 0, -.13, 0, el);
+    const hand = new THREE.Group(); hand.position.set(0, -.29, 0); el.add(hand);
+    S(.042, MAT.skin, 0, 0, 0, hand).scale.set(.9, 1.1, .7);
+    return { sh, el, hand };
+  };
+  const L2 = arm(-1, -1.35), R2 = arm(1, -1.1);
+  const jk = mk(new THREE.BoxGeometry(.16, .06, .5), MAT.jacket, 0, -.05, 0, L2.el); jk.position.set(0, -.18, .05);
+  for (const sx of [-1, 1]) { const sl = mk(new THREE.BoxGeometry(.06, .4, .08), MAT.jacket, sx * .09, -.32, .05, L2.el); sl.rotation.x = .1; }
+  const ph = mk(new THREE.BoxGeometry(.07, .012, .14), MAT.black, 0, -.04, .03, R2.hand); ph.rotation.x = 1.2;
+  const scr = new THREE.Mesh(new THREE.PlaneGeometry(.062, .126), new THREE.MeshBasicMaterial({ color: 0x9fc0ff })); scr.position.set(0, -.034, .037); scr.rotation.x = 1.2 - Math.PI / 2; R2.hand.add(scr);
+  const k = ITEM_MESH.keys(); k.position.set(.03, -.08, -.02); k.rotation.set(1.4, 0, .3); L2.hand.add(k);
+  // head: face, hair, ears
+  S(.045, MAT.skin, 0, 1.52, 0, g).scale.set(1, 1.3, 1);
+  const head = new THREE.Group(); head.position.set(0, 1.64, .01); g.add(head);
+  mk(new THREE.SphereGeometry(.115, 18, 14), MAT.skin, 0, 0, 0, head).scale.set(.9, 1.08, 1);
+  const hair = mk(new THREE.SphereGeometry(.123, 18, 10, 0, TAU, 0, Math.PI * .55), MAT.hair, 0, .015, -.008, head); hair.rotation.x = -.25;
+  for (const s of [-1, 1]) {
+    S(.026, MAT.skin, s * .105, -.005, 0, head).scale.set(.5, 1, .8);
+    mk(new THREE.SphereGeometry(.014, 8, 6), MAT.white, s * .038, .02, .098, head);
+    mk(new THREE.SphereGeometry(.008, 8, 6), MAT.black, s * .038, .02, .108, head);
+    mk(new THREE.BoxGeometry(.035, .007, .01), MAT.hair, s * .038, .048, .1, head).rotation.z = -s * .12;
+  }
+  mk(new THREE.ConeGeometry(.014, .035, 6), MAT.skin, 0, -.008, .113, head).rotation.x = Math.PI / 2;
+  mk(new THREE.BoxGeometry(.04, .006, .008), std({ color: 0x8a4a40 }), 0, -.045, .1, head);
+  g.userData = { head, arms: [L2, R2] };
+  g.traverse(o => { if (o.isMesh) o.castShadow = true; });
   return g;
 }
 
@@ -1358,6 +1514,17 @@ const sfx = {
   ring(where) { for (let k = 0; k < 3; k++) for (let i = 0; i < 6; i++) tone({ f: i % 2 ? 1320 : 1760, dur: .07, type: 'square', g: .045, at: k * 1.3 + i * .08, where }); },
   gasp() { burst({ f: 1400, f2: 600, q: 1.2, dur: .7, g: .45, attack: .02 }); },
   beep(v) { tone({ f: 1480, dur: .06, g: .035 + v * .012 }); },
+  crClick(where) { const n = 3 + (Math.random() * 4 | 0); for (let i = 0; i < n; i++) burst({ type: 'highpass', f: rnd(2500, 4500), q: 3, dur: .03, g: .35, at: i * rnd(.06, .1), where }); },
+  scrape(where) { burst({ type: 'bandpass', f: 1400, f2: 3800, q: 6, dur: .5, g: .16, attack: .05, where }); },
+  moan(where) { const f = rnd(70, 95); tone({ f, f2: f * .7, dur: 2.4, type: 'sawtooth', g: .12, attack: .5, where }); burst({ type: 'lowpass', f: 300, dur: 2.2, g: .14, attack: .6, where }); },
+  jawSnap(where) { burst({ type: 'highpass', f: 2000, dur: .05, g: .5, where }); tone({ f: 180, f2: 90, dur: .08, type: 'square', g: .15, where }); },
+  thunder() { burst({ type: 'lowpass', f: 160, f2: 60, dur: rnd(3, 5), g: .3, attack: .3 }); burst({ type: 'lowpass', f: 600, dur: .4, g: .18, at: .1 }); },
+  tick(where) { tone({ f: 2600, dur: .015, type: 'square', g: .04, where }); },
+  fridge(where) { tone({ f: 60, dur: 3.2, g: .05, attack: .4, where }); tone({ f: 120, dur: 3.2, g: .025, attack: .4, where }); },
+  pipe(where) { for (let i = 0; i < 3; i++) { tone({ f: rnd(140, 260), f2: 90, dur: .25, type: 'triangle', g: .14, at: i * .22, where }); burst({ type: 'bandpass', f: 900, q: 4, dur: .12, g: .12, at: i * .22, where }); } },
+  hiss(where) { burst({ type: 'highpass', f: 5000, dur: 1.8, g: .05, attack: .3, where }); },
+  rain(where) { for (let i = 0; i < 18; i++) burst({ type: 'bandpass', f: rnd(3000, 7000), q: 2, dur: .03, g: .06, at: Math.random() * 2, where }); },
+  boards(where) { const f = rnd(220, 360); tone({ f, f2: f * .8, dur: .35, type: 'sawtooth', g: .05, attack: .05, where }); burst({ f: f * 2.5, q: 9, dur: .3, g: .07, attack: .05, where }); },
   pocket() { burst({ type: 'bandpass', f: 1800, q: 2, dur: .12, g: .08 }); },
   rustle() { for (let i = 0; i < 4; i++) burst({ type: 'bandpass', f: rnd(900, 2200), q: 1.5, dur: .18, g: .12, at: i * .09 }); },
   whoosh() { burst({ type: 'bandpass', f: 600, f2: 2400, q: 1.5, dur: .3, g: .12, attack: .05 }); },
@@ -1489,7 +1656,7 @@ function whisperText() {
   whispEl.style.left = rnd(8, 60) + 'vw'; whispEl.style.top = rnd(18, 70) + 'vh';
   whispEl.classList.remove('show'); void whispEl.offsetWidth; whispEl.classList.add('show');
 }
-const LEVELS = [[0, 'Sober'], [15, 'Buzzed'], [35, 'Baked'], [50, 'Zooted'], [75, 'Cooked'], [90, 'Greening out']];
+const LEVELS = [[0, 'Sober'], [15, 'Buzzed'], [35, 'Baked'], [50, 'Zooted'], [60, 'Geeked'], [75, 'Cooked'], [90, 'Greening out']];
 let lastHud = '';
 function hud() {
   const h = Math.round(L.high), b = Math.round(L.breath * 100), sig = h + '|' + b + '|' + L.holding + '|' + (L.sense || 0) + '|' + G.items.phone + G.items.keys + G.items.jacket + '|' + G.snackBag.length + '|' + G.decoys + '|' + Math.round(G.battery * 100) + G.torch;
@@ -1593,8 +1760,29 @@ function quitToTitle() {
 $('quitBtn').addEventListener('click', quitToTitle);
 $('pauseSettings').addEventListener('click', () => openSettings('pause'));
 $('settingsBtn').addEventListener('click', () => openSettings('title'));
-$('startBtn').addEventListener('click', () => newRun('normal'));
-$('hardBtn').addEventListener('click', () => newRun('one'));
+const howtoSeen = () => { try { return !!localStorage.getItem('lasthit.howto'); } catch (e) { return true; } };
+const HW_N = document.querySelectorAll('.hw-slide').length;
+let hwI = 0, hwThen = null;
+function showHw(i) {
+  hwI = clamp(i, 0, HW_N - 1);
+  document.querySelectorAll('.hw-slide').forEach((el, k) => { el.hidden = k !== hwI; });
+  document.querySelectorAll('#hwDots i').forEach((el, k) => el.classList.toggle('on', k <= hwI));
+  $('hwStep').textContent = `${hwI + 1} / ${HW_N}`; $('hwBack').disabled = hwI === 0;
+  $('hwNext').lastChild.textContent = hwI === HW_N - 1 ? (hwThen ? 'Wake up' : 'Got it') : 'Next';
+}
+function openHowto(then) { hwThen = then || null; $('title').hidden = true; $('howto').hidden = false; showHw(0); }
+function closeHowto(go) {
+  try { localStorage.setItem('lasthit.howto', '1'); } catch (e) {}
+  $('howto').hidden = true; const fn = hwThen; hwThen = null;
+  if (go && fn) fn(); else $('title').hidden = false;
+}
+$('hwNext').addEventListener('click', () => hwI < HW_N - 1 ? showHw(hwI + 1) : closeHowto(true));
+$('hwBack').addEventListener('click', () => showHw(hwI - 1));
+$('hwSkip').addEventListener('click', () => closeHowto(true));
+$('howtoBtn').addEventListener('click', () => openHowto(null));
+const firstTime = fn => () => howtoSeen() ? fn() : openHowto(fn);
+$('startBtn').addEventListener('click', firstTime(() => newRun('normal')));
+$('hardBtn').addEventListener('click', firstTime(() => newRun('one')));
 $('againBtn').addEventListener('click', () => newRun(G ? G.mode : 'normal', G && G.daily ? { daily: todayUTC() } : {}));
 $('overAgain').addEventListener('click', () => newRun('one'));
 $('overTitleBtn').addEventListener('click', () => { $('over').hidden = true; $('title').hidden = false; state = 'title'; refreshTitle(); });
@@ -1607,11 +1795,12 @@ function enterRoom(id, from, slam) {
   const node = NODES[id];
   node.enteredHigh = L.high >= 60; node.entryFrom = from;
   let dr = from ? cur.doors.find(d => d.to === from) : null;
-  if (!dr && from === null && cur.couch) { P.x = cur.couch.x; P.z = cur.couch.z; P.yaw = Math.atan2(-cur.couch.nx, -cur.couch.nz); P.pitch = 0; }
+  if (!dr && from === null && cur.couch) { P.x = cur.couch.x; P.z = cur.couch.z; P.yaw = openYaw(P.x, P.z, Math.atan2(-cur.couch.nx, -cur.couch.nz)); P.pitch = 0; }
   else {
     dr = dr || cur.doors[0];
     P.x = dr.x + dr.nx * .9; P.z = dr.z + dr.nz * .9; P.yaw = Math.atan2(-dr.nx, -dr.nz);
     for (let k = 0; k < 10 && blocked(P.x, P.z, PR); k++) { P.x += dr.nx * .2; P.z += dr.nz * .2; }
+    P.yaw = openYaw(P.x, P.z, P.yaw);
     if (dr.panel) { dr.panel.rotation.y = -1.35; L.behind = { dr, t: 0 }; } else L.behind = null;
   }
   if (shift) { showRoomShift(shift.expected, node.name || ' '); sfx.shiftSting(); setTimeout(() => { if (state === 'playing' || state === 'trans') say(shiftLine(shift.expected), 3, true); }, 1100); }
@@ -1636,6 +1825,17 @@ function creatureVisit(entry) {
   CR.avoid = entry ? entry.to : null;
   L.stat = .3;
 }
+// turn toward the most open direction near 'base' so you never come in nose-to-wall
+function openYaw(x, z, base) {
+  let best = base, bestS = -1;
+  for (let k = -12; k <= 12; k++) {
+    const a = base + k * .12, fx = -Math.sin(a), fz = -Math.cos(a);
+    let d = 0; while (d < 8 && !blocked(x + fx * (d + .35), z + fz * (d + .35), .15)) d += .25;
+    const sc = d - Math.abs(k) * .05;
+    if (sc > bestS) { bestS = sc; best = a; }
+  }
+  return best;
+}
 function placeCreatureFar() {
   let best = null, bd = -1;
   for (let i = 0; i < 30; i++) { const sp = randomFloor(cur, .4), d = Math.hypot(sp.x - P.x, sp.z - P.z); if (d > bd) { bd = d; best = sp; } }
@@ -1658,7 +1858,7 @@ function soundToward(roomId, x, z, y = 1.2) {
 }
 function noise(x, z, radius, loud) {
   if (CR.room === cur.id) {
-    if (CR.state !== 'lunge' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) crHear(x, z);
+    if (CR.state !== 'lunge' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) { crHear(x, z); CR.chase = false; }
   } else if (cur.id !== 'living') {
     if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); }
   }
@@ -1733,14 +1933,18 @@ function exhale(coughed) {
 }
 /* ---------- hiding ---------- */
 function enterHide(hd) {
-  L.hidden = { hd, back: { x: P.x, z: P.z } };
+  // it only knows where you went if it was close enough to hear you climb in
+  const heard = CR.room === cur.id && !CR.visiting && CR.state !== 'leave' && Math.hypot(CR.x - P.x, CR.z - P.z) < 3;
+  L.hidden = { hd, heard, back: { x: P.x, z: P.z } };
+  if (heard) { CR.state = 'track'; CR.tx = hd.out.x; CR.tz = hd.out.z; CR.chase = true; CR.hideHunt = true; CR.cloud = null; say('"It heard me get in."', 2.4, true); }
+  else { if (CR.room === cur.id && CR.state !== 'leave') { CR.chase = false; CR.cloud = null; CR.state = 'sniff'; CR.sniffT = 2.5; CR.searchLeave = true; } say('"Okay. Stay still."', 2, true); }
   P.x = hd.x; P.z = hd.z; P.yaw = Math.atan2(-hd.nx, -hd.nz); P.pitch = hd.kind === 'tub' ? .5 : 0;
   L.inhaling = false; setTorch(false);
   $('hideView').className = hd.kind; $('hideView').hidden = false;
   sfx.rustle(); noise(P.x, P.z, 2, 0); L.nearDoor = undefined;
 }
 function leaveHide(quiet) {
-  const hd = L.hidden.hd; L.hidden = null;
+  const hd = L.hidden.hd; L.hidden = null; CR.hideHunt = false;
   P.x = hd.out.x; P.z = hd.out.z; P.pitch = 0;
   $('hideView').hidden = true; L.nearDoor = undefined;
   if (!quiet) { sfx.rustle(); noise(P.x, P.z, 2.5, 0); }
@@ -1843,7 +2047,7 @@ const ACH = [
   ['bookworm', 'Bookworm', 'Read every note in the house.'],
   ['snacks', 'Munchies', 'Eat five snacks in one run.'],
   ['decoy', 'Ventriloquist', 'Distract it with three thrown bottles in one run.'],
-  ['hideseek', 'Hide and seek', 'Stay hidden while it is within three metres.']
+  ['hideseek', 'Hide and seek', 'Stay hidden while it searches within three metres of you.']
 ];
 let ACHS = {}; try { ACHS = JSON.parse(localStorage.getItem('lasthit.ach')) || {}; } catch (e) {}
 const toastEl = $('toast'); let toastT = 0;
@@ -1890,6 +2094,7 @@ function die(kind) { G.lastDeath = kind; say(kind === 'green' ? 'You greened out
 /* ================= update ================= */
 function update(dt) {
   G.time += dt;
+  if (L.high >= 60 && !L.geekSaid) { L.geekSaid = true; say("You're geeked. The house is starting to move.", 3.2); } else if (L.high < 50) L.geekSaid = false;
   G.saveT = (G.saveT || 0) + dt; if (G.saveT > 5) { G.saveT = 0; saveGame(); }
   // breath
   if (breathHeld() && L.breath > 0 && L.breathLock <= 0 && !L.inhaling) {
@@ -1927,15 +2132,15 @@ function update(dt) {
   const moved = tryMove(P, mvx * sp * dt, mvz * sp * dt, PR);
   P.bob += moved * 3.4;
   L.stepAcc += moved;
-  if (L.stepAcc > (running ? .95 : .7)) { L.stepAcc = 0; sfx.myStep(L.holding ? .03 : running ? .22 : .08); }
+  if (L.stepAcc > (running ? .95 : .7)) { L.stepAcc = 0; sfx.myStep(L.holding ? .03 : running ? .22 : .08); if (!L.holding && Math.random() < .07) { sfx.boards({ x: P.x, y: 0, z: P.z }); noise(P.x, P.z, 4, 0); } }
   if (running) { L.runNoise -= dt; if (L.runNoise <= 0) { noise(P.x, P.z, 10, 1); L.runNoise = .4; } }
-  L.noiseR = L.holding ? 0 : L.hidden ? .9 : running ? 10 : moving ? 3 : 1.4;
+  L.noiseR = L.holding || (L.hidden && !L.hidden.heard) ? 0 : running ? 10 : moving ? 3 : 1.4;
 
   // pen
   const held = penHeld();
   if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
-    L.pull += dt; L.high += dt * 11;
+    L.pull += dt; L.high += dt * 5.5;
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
@@ -2041,6 +2246,7 @@ function update(dt) {
   let look = CR.room === cur.id ? seen(CR.x, CR.z) : 0;
   for (const fk of fakes) if (fk.active) look = Math.max(look, seen(fk.x, fk.z));
   L.look = look;
+  if (look > 0 && !L.holding && !L.hidden && G.time - (G.zaT ?? -99) > 12) { G.zaT = G.time; say('"Hold your breath. It can smell the za."', 2.8, true); }
   const bpm = look > 0 ? 125 + look * 55 : 60 + L.high * .3 + L.near * 85 + (L.holding ? 15 : 0);
   L.hb -= dt; if (L.hb <= 0) { sfx.heart(look > 0 ? 1.1 + look * .6 : .25 + L.near * .7 + (L.holding ? .2 : 0)); L.hb = 60 / bpm; L.hbPulse = look > 0 ? 1 : 0; }
   L.hbPulse = Math.max(0, (L.hbPulse || 0) - dt * 5);
@@ -2080,6 +2286,22 @@ function updateWorld(dt) {
   }
   if (L.phoneGlow > 0) { L.phoneGlow -= dt; if (L.phoneGlow <= 0 && cur.items.phone) cur.items.phone.mesh.userData.screen.material.color.setHex(0x0a0c10); }
 
+  // each room has its own sound: a clock, the fridge, pipes, a dripping tap, TV hiss, rain on the window
+  G.roomAmbT = (G.roomAmbT ?? 1) - dt;
+  if (G.roomAmbT <= 0 && cur) {
+    const ty = cur.node.type, sp = cur.ambSpot || (cur.ambSpot = wallPoint(cur, hashStr(cur.id) % 4, 0, .1)), at = { x: sp.x, y: 1.6, z: sp.z };
+    G.roomAmbT = 1;
+    if (ty === 'living' || ty === 'fakeliving') { sfx.tick(at); setTimeout(() => sfx.tick(at), 500); }
+    else if (ty === 'kitchen') { sfx.fridge(at); G.roomAmbT = 3.1; }
+    else if (['utility', 'storage', 'wine', 'garage'].includes(ty)) { if (Math.random() < .3) sfx.pipe(at); G.roomAmbT = rnd(2, 5); }
+    else if (ty === 'bath') { sfx.drip(at); G.roomAmbT = rnd(1.2, 1.8); }
+    else if (ty === 'rec') { sfx.hiss(at); G.roomAmbT = 1.7; }
+    else if (cur.node.light === 'window') { sfx.rain(at); G.roomAmbT = 2; }
+    else G.roomAmbT = 3;
+  }
+  G.thunderT = (G.thunderT ?? rnd(30, 60)) - dt;
+  if (G.thunderT <= 0) { G.thunderT = rnd(60, 120); sfx.thunder(); }
+  if (CR.room !== cur.id && Math.random() < dt / 22) { const w = soundToward(CR.room, 0, 0, 1.6); if (w) sfx.moan(w); }
   // ambient house sounds
   G.ambT -= dt;
   if (G.ambT <= 0) {
@@ -2182,7 +2404,7 @@ function updateCreature(dt) {
     }
   } else if (!L.holding) CR.calm = 0;
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
-  if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
+  if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave' && d < Math.min(L.noiseR, 3)) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
   if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 12 && !CR.chase) startLeave(); }
   switch (CR.state) {
@@ -2196,7 +2418,7 @@ function updateCreature(dt) {
       if (CR.sniffSfx <= 0) { sfx.sniff(crWhere(), .32); CR.sniffSfx = .8; }
       if (CR.sniffT <= 0) {
         let best = null; for (const c of SCENT) if (c.room === cur.id && c.s > .08 && (!best || c.s > best.s)) best = c;
-        if (CR.visiting) startLeave();
+        if (CR.visiting || CR.searchLeave) { CR.searchLeave = false; startLeave(true); }
         else if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; CR.chase = false; }
         else if (CR.targetRoom || CR.visiting) startLeave();
         else { CR.state = 'wander'; const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; }
@@ -2204,6 +2426,7 @@ function updateCreature(dt) {
       break;
     case 'track':
       speed = CR.chase ? runSpeed() * .88 : 1.6 + Object.values(G.items).filter(Boolean).length * .15;
+      if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5 && CR.hideHunt && L.hidden && L.hidden.heard) { CR.hideHunt = false; sfx.doorBang({ x: CR.x, y: 1.2, z: CR.z }); caught(); return; }
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.chase = false; CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
       break;
     case 'windup':
@@ -2237,9 +2460,12 @@ function updateCreature(dt) {
   const mv = Math.hypot(CR.x - ox, CR.z - oz);
   CR.moving = clamp(mv / (dt * 2), 0, 1);
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
+  CR.clickT = (CR.clickT ?? 2) - dt;
+  if (CR.clickT <= 0) { CR.clickT = rnd(1.6, 3.4); Math.random() < .25 ? sfx.jawSnap(crWhere()) : sfx.crClick(crWhere()); }
+  if (mv > .0001 && Math.random() < dt * .6) sfx.scrape({ x: CR.x, y: .3, z: CR.z });
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .9 : .6); if (d < 6 && Math.random() < .4) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .2); }
-  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && L.holding) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && !L.hidden.heard) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   if (L.hidden && d < 3) unlock('hideseek');
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
@@ -2259,7 +2485,7 @@ function creatureEnters(fromRoom) {
   const dr = cur.doors.find(x => x.to === fromRoom) || pick(cur.doors.filter(x => !x.front));
   CR.x = dr.x + dr.nx * .6; CR.z = dr.z + dr.nz * .6;
   for (let k = 0; k < 8 && blocked(CR.x, CR.z, .32); k++) { CR.x += dr.nx * .2; CR.z += dr.nz * .2; }
-  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6; CR.visiting = false;
+  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6; CR.visiting = false; CR.searchLeave = !!L.hidden; CR.hideHunt = false;
   if (CR.targetRoom === cur.id) CR.targetRoom = null;
   sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); sfx.creak({ x: dr.x, y: 1.2, z: dr.z }, .2);
   if (dr.panel) { dr.panel.rotation.y = -1.1; L.closing = { dr, t: 0, slam: false }; }
@@ -2320,6 +2546,7 @@ function updateEnding(dt) {
   if (G.endStep >= 7 && G.endStep < 11) { fade = Math.max(0, 1 - (e - ENDING[6]) / 1.2); }
   if (G.endStep >= 7 && e < ENDING[8]) { P.roll = .5 + Math.sin(e * 9) * .03; P.yaw += Math.sin(e * 13) * .002; }
   if (step(8)) say('"Come on, let\'s go."', 4, true);
+  if (friend && G.endStep >= 7) { const fu = friend.userData; fu.head.rotation.x = .25 + Math.sin(e * 1.3) * .05; fu.arms[1].sh.rotation.x = .2 + (G.endStep < 9 ? Math.max(0, Math.sin(e * 6)) * .5 : 0); }
   if (G.endStep >= 9 && G.endStep < 11) {
     const k = ease(clamp((e - ENDING[8]) / 1.5, 0, 1)), m = G.morning;
     P.y = .78 + (EYE - .78) * k; P.pitch = .45 * (1 - k); P.roll = .5 * (1 - k);
@@ -2409,7 +2636,6 @@ function render(dt) {
     else if (lt.kind === 'laptop') k = .95 + Math.sin(t * .5) * .05;
     lt.L.intensity = lt.base * k;
   }
-  if (cur && cur.glowMat) cur.glowMat.opacity = ending ? 0 : .55 * (L.doorGlow || 0);
   if (cur && cur.flame) cur.flame.scale.set(.07 + Math.random() * .015, .13 + Math.random() * .03, 1);
 
   // pen
@@ -2428,11 +2654,11 @@ function render(dt) {
   if (state === 'ending') {
     const lk = G.endStep === 5 ? G.lungeK : 0, close = lk > .95;
     animCreature(creature, CR.x + (close ? rnd(-.02, .02) : 0), CR.z, CR.yaw, lk > 0 && !close ? 1 : 0, G.endStep >= 2 && G.endStep < 4, (EYE - 2.3) * lk);
-    creature.userData.mouth.scale.set(1, 1 + lk * (1.6 + Math.random() * .6), 1);
+    setMouth(creature, Math.min(1, lk * (1 + Math.random() * .2)));
   }
-  else if (scare && turnToIt) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false); creature.userData.mouth.scale.set(1, 1.8, 1); }
-  else if (scare) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false, EYE - 2.3 + shy); creature.userData.mouth.scale.set(1, 2.2 + Math.random() * .5, 1); }
-  else if (creature.visible) { creature.userData.mouth.scale.set(1, 1, 1); animCreature(creature, CR.x, CR.z, CR.yaw, CR.moving, CR.sniffing); }
+  else if (scare && turnToIt) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false); setMouth(creature, .55); }
+  else if (scare) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false, EYE - 2.3 + shy); setMouth(creature, .85 + Math.random() * .15); }
+  else if (creature.visible) { setMouth(creature, 0); animCreature(creature, CR.x, CR.z, CR.yaw, CR.moving, CR.sniffing); }
   for (const fk of fakes) if (fk.active) animCreature(fk.f, fk.x, fk.z, Math.atan2(P.x - fk.x, P.z - fk.z), 0, Math.sin(t * .5 + fk.x) > 0);
 
   // smoke
@@ -2548,6 +2774,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, creature, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
