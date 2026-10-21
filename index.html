@@ -2456,7 +2456,8 @@ function updateCreature(dt) {
   const ox = CR.x, oz = CR.z;
   if (speed > 0) {
     const dx = tx - CR.x, dz = tz - CR.z, dl = Math.hypot(dx, dz) || 1;
-    const got = tryMove(CR, dx / dl * speed * dt, dz / dl * speed * dt, .32);
+    // if it ever ends up inside furniture, let it walk out instead of freezing
+    const got = blocked(CR.x, CR.z, .32) ? (CR.x += dx / dl * speed * dt, CR.z += dz / dl * speed * dt, speed * dt) : tryMove(CR, dx / dl * speed * dt, dz / dl * speed * dt, .32);
     if (got < speed * dt * .3) { const a = Math.atan2(dz, dx) + (Math.random() < .5 ? 1.2 : -1.2); tryMove(CR, Math.cos(a) * speed * dt, Math.sin(a) * speed * dt, .32); if (CR.state === 'wander' && Math.random() < .05) { const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; } }
   }
   const mv = Math.hypot(CR.x - ox, CR.z - oz);
@@ -2777,7 +2778,6 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
-if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, creature, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
