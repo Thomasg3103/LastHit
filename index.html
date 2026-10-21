@@ -1859,7 +1859,7 @@ function soundToward(roomId, x, z, y = 1.2) {
 }
 function noise(x, z, radius, loud) {
   if (CR.room === cur.id) {
-    if (CR.state !== 'lunge' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) { crHear(x, z); CR.chase = false; }
+    if (CR.state !== 'lunge' && CR.state !== 'leave' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) { crHear(x, z); CR.chase = false; }
   } else if (cur.id !== 'living') {
     if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); }
   }
@@ -2401,13 +2401,13 @@ function updateCreature(dt) {
     else {
       CR.calm = (CR.calm || 0) + dt;
       // each time it loses you it takes longer to fool it again
-      if (CR.calm > (L.hidden ? 1.6 : 3.2) + CR.wary) { CR.calm = 0; CR.wary += 1.5; CR.chase = false; CR.cloud = null; CR.targetRoom = null; startLeave(true); if (CR.state === 'leave') say('"It lost me."', 2.2, true); }
+      if (CR.calm > (L.hidden ? 1.6 : 3.2) + CR.wary) { CR.calm = 0; CR.wary += 1.5; CR.chase = false; CR.cloud = null; CR.targetRoom = null; startLeave(true); if (CR.state === 'leave') CR.lostMsg = true; }
     }
   } else if (!L.holding) CR.calm = 0;
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
   if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave' && d < Math.min(L.noiseR, 3)) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
-  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 12 && !CR.chase) startLeave(); }
+  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 8 && !CR.chase) startLeave(); }
   switch (CR.state) {
     case 'wander':
       speed = .7;
@@ -2419,7 +2419,7 @@ function updateCreature(dt) {
       if (CR.sniffSfx <= 0) { sfx.sniff(crWhere(), .32); CR.sniffSfx = .8; }
       if (CR.sniffT <= 0) {
         let best = null; for (const c of SCENT) if (c.room === cur.id && c.s > .08 && (!best || c.s > best.s)) best = c;
-        if (CR.visiting || CR.searchLeave) { CR.searchLeave = false; startLeave(true); }
+        if (CR.visiting || CR.searchLeave) { const searched = CR.searchLeave; CR.searchLeave = false; startLeave(true); if (searched && CR.state === 'leave') CR.lostMsg = true; }
         else if (best) { CR.state = 'track'; CR.tx = best.x; CR.tz = best.z; CR.cloud = best; CR.chase = false; }
         else if (CR.targetRoom || CR.visiting) startLeave();
         else { CR.state = 'wander'; const sp = randomFloor(cur, .4); CR.tx = sp.x; CR.tz = sp.z; }
@@ -2441,11 +2441,12 @@ function updateCreature(dt) {
       if (CR.lungeT <= 0) { CR.state = 'sniff'; CR.sniffT = 1.4; }
       break;
     case 'leave': {
-      speed = 2.6; const dr = CR.leaveDoor;
+      speed = 3.2; const dr = CR.leaveDoor;
       if (!dr || !cur.doors.includes(dr)) { CR.state = 'wander'; break; }
       tx = dr.x + dr.nx * .45; tz = dr.z + dr.nz * .45; CR.leaveT = (CR.leaveT || 0) + dt;
-      if (Math.hypot(tx - CR.x, tz - CR.z) < .35 || CR.leaveT > 6) {
+      if (Math.hypot(tx - CR.x, tz - CR.z) < .35 || CR.leaveT > 3) {
         sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); if (dr.panel) { dr.panel.rotation.y = -1; L.closing = { dr, t: 0, slam: false }; }
+        if (CR.lostMsg) { CR.lostMsg = false; say('"It lost me."', 2.2, true); }
         CR.leftRoom = cur.id; CR.leftAt = G.time; CR.room = dr.to; CR.visiting = false; CR.timer = rnd(3, 6); if (CR.targetRoom === dr.to) CR.targetRoom = null; creature.visible = false; return;
       }
       break;
@@ -2480,7 +2481,12 @@ function startLeave(away = false) {
   if (CR.hideHunt && L && L.hidden && L.hidden.heard) return; // it knows where you are
   let dr = null;
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
-  if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid); if (away) opts.sort((a, b) => Math.hypot(b.x - P.x, b.z - P.z) - Math.hypot(a.x - P.x, a.z - P.z)); dr = opts.length ? (away ? opts[0] : pick(opts)) : null; }
+  if (!dr) { let opts = cur.doors.filter(x => !x.front && x.to !== 'living'); if (CR.visiting && opts.length > 1) opts = opts.filter(x => x.to !== CR.avoid);
+    // the nearest way out that doesn't walk it past you
+    const passesYou = x => { const ax = x.x - CR.x, az = x.z - CR.z, l2 = ax * ax + az * az || 1, k = clamp(((P.x - CR.x) * ax + (P.z - CR.z) * az) / l2, 0, 1); return Math.hypot(CR.x + ax * k - P.x, CR.z + az * k - P.z) < 1.3; };
+    const clear = opts.filter(x => !passesYou(x)); if (clear.length) opts = clear;
+    opts.sort((a, b) => Math.hypot(a.x - CR.x, a.z - CR.z) - Math.hypot(b.x - CR.x, b.z - CR.z));
+    dr = opts[0] || null; }
   if (!dr) { CR.idleT = 0; CR.visiting = false; return; }
   CR.state = 'leave'; CR.leaveDoor = dr; CR.idleT = 0; CR.leaveT = 0; CR.chase = false;
 }
@@ -2489,7 +2495,7 @@ function creatureEnters(fromRoom) {
   const dr = cur.doors.find(x => x.to === fromRoom) || pick(cur.doors.filter(x => !x.front));
   CR.x = dr.x + dr.nx * .6; CR.z = dr.z + dr.nz * .6;
   for (let k = 0; k < 8 && blocked(CR.x, CR.z, .32); k++) { CR.x += dr.nx * .2; CR.z += dr.nz * .2; }
-  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6; CR.visiting = false; CR.searchLeave = !!L.hidden; CR.hideHunt = false;
+  CR.state = 'sniff'; CR.sniffT = 2.2; CR.idleT = 0; CR.cloud = null; CR.grace = 1.6; CR.visiting = false; CR.searchLeave = !!L.hidden; CR.hideHunt = false; CR.lostMsg = false;
   if (CR.targetRoom === cur.id) CR.targetRoom = null;
   sfx.doorOpen({ x: dr.x, y: 1.2, z: dr.z }); sfx.creak({ x: dr.x, y: 1.2, z: dr.z }, .2);
   if (dr.panel) { dr.panel.rotation.y = -1.1; L.closing = { dr, t: 0, slam: false }; }
@@ -2778,6 +2784,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
