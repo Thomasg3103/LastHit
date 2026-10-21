@@ -2784,10 +2784,13 @@ function render(dt) {
   if (scare) { lamp.intensity = turnToIt ? 14 : 8; lamp.distance = turnToIt ? 12 : 5; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
   const jumpLit = state === 'ending' && G && (G.endPhase === 'jump' || G.endPhase === 'reveal');
-  grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : jumpLit ? 26 * (.85 + Math.random() * .3) : 0;
-  if (jumpLit) grabLight.position.set(CR.x + (P.x - CR.x) * .4, 2.2, CR.z + (P.z - CR.z) * .4);
+  const revealLit = jumpLit && G.endPhase === 'reveal';
+  // the silent reveal is lit cold and from below, mostly shadow; the lunge is lit red
+  grabLight.color.setHex(revealLit ? 0xaec4ff : 0xff2020);
+  grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : revealLit ? 7 : jumpLit ? 26 * (.85 + Math.random() * .3) : 0;
+  if (jumpLit) grabLight.position.set(CR.x + (P.x - CR.x) * .45, revealLit ? .35 : 2.2, CR.z + (P.z - CR.z) * .45);
   if (scare) grabLight.position.set(CR.x + (P.x - CR.x) * .35, 2.0, CR.z + (P.z - CR.z) * .35);
-  figMat.emissive.setHex(scare || jumpLit ? 0x4a0606 : 0x0b0b0b);
+  figMat.emissive.setHex(scare || (jumpLit && !revealLit) ? 0x4a0606 : 0x0b0b0b);
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
   if (!ending && G && G.torch) {
     // cheap phone torch: it stutters, more as the battery goes
