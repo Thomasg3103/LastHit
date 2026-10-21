@@ -2182,7 +2182,7 @@ function update(dt) {
   const held = penHeld();
   if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
-    L.pull += dt; L.high += dt * 11;
+    L.pull += dt; L.high += dt * 9;
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
