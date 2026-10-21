@@ -242,8 +242,8 @@ body.touch .desk-only{display:none}
       <dt>F</dt><dd>Auto-walk on or off. Lets a laptop touchpad keep working while you move.</dd>
       <dt>Z / X or ← →</dt><dd>Turn without the mouse. ↑ ↓ look up and down.</dd>
       <dt>Hold R</dt><dd>Run. It hears you running.</dd>
-      <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
-      <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
+      <dt>Hold SPACE / right click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
+      <dt>Hold Shift</dt><dd>Hold your breath</dd>
       <dt>Q</dt><dd>Eat a snack you picked up</dd>
       <dt>G</dt><dd>Throw a bottle or can. It runs to the noise.</dd>
       <dt>T</dt><dd>Phone torch, once you've found your phone</dd>
@@ -340,7 +340,7 @@ body.touch .desk-only{display:none}
   <circle cx="160" cy="140" r="90" fill="url(#hwL)"><animate attributeName="opacity" values="0;0;1;.6;0" keyTimes="0;.35;.5;.82;1" dur="5s" repeatCount="indefinite"/></circle>
   <g transform="translate(212 150) rotate(-35)"><rect x="-5" y="-40" width="10" height="56" rx="3" fill="#2d312d" stroke="#8a8a80" stroke-width=".6"/><rect x="-5.5" y="-22" width="11" height="10" fill="#8a6420"/><circle cx="0" cy="14" r="3.4" fill="#ffae4a"><animate attributeName="opacity" values=".2;1;1;.2;.2" keyTimes="0;.05;.35;.4;1" dur="5s" repeatCount="indefinite"/></circle></g>
   <g fill="#cfd5c8" opacity=".0"><circle cx="190" cy="120" r="8"/><circle cx="178" cy="108" r="11"/><circle cx="166" cy="96" r="13"/><animate attributeName="opacity" values="0;0;.35;0;0" keyTimes="0;.35;.45;.7;1" dur="5s" repeatCount="indefinite"/></g></svg>
-        <figcaption><h3>Your pen is your only light</h3><p>It's pitch black. Hold to take a hit, let go to exhale, and the room lights up for a while. The longer the pull, the more you see.</p><p class="keys"><span class="desk-only">Hold SPACE or click</span><span class="touch-only">Hold HIT</span></p></figcaption>
+        <figcaption><h3>Your pen is your only light</h3><p>It's pitch black. Hold to take a hit, let go to exhale, and the room lights up for a while. The longer the pull, the more you see.</p><p class="keys"><span class="desk-only">Hold SPACE or right click</span><span class="touch-only">Hold HIT</span></p></figcaption>
       </figure>
       <figure class="hw-slide" hidden>
         <svg viewBox="0 0 320 180" role="img" aria-label="The creature follows a smoke trail while the sensor fills up"><rect width="320" height="180" fill="#0b0c0b"/><path d="M0 150h320v30H0z" fill="#1c1a16"/>
@@ -1562,7 +1562,7 @@ addEventListener('keydown', e => {
   if (k === 'q' && state === 'playing' && !e.repeat) input.eat = true;
   if (k === 'g' && state === 'playing' && !e.repeat) input.throw = true;
   if (k === 't' && state === 'playing' && !e.repeat) input.torch = true;
-  if (k === 'shift' || k === 'c') input.brKey = true;
+  if (k === 'shift') input.brKey = true;
   if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
   if (k === 's' && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
   if (k === ' ' && state === 'playing') input.penKey = true;
@@ -1573,7 +1573,7 @@ addEventListener('keyup', e => {
   const k = e.key.toLowerCase();
   if (keyMap[k]) input[keyMap[k]] = 0;
   if (k === 'r') input.run = false;
-  if (k === 'shift' || k === 'c') input.brKey = false;
+  if (k === 'shift') input.brKey = false;
   if (k === ' ') { input.penKey = false; releaseCheck(); }
 });
 const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR', 'lookU', 'lookD']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
@@ -1584,10 +1584,9 @@ cvs.addEventListener('contextmenu', e => e.preventDefault());
 cvs.addEventListener('mousedown', e => {
   if (state !== 'playing' || isTouch) return;
   if (!locked) lockPointer();
-  if (e.button === 0) input.penMouse = true;
-  if (e.button === 2) input.brMouse = true;
+  if (e.button === 2) input.penMouse = true;
 });
-addEventListener('mouseup', e => { if (e.button === 0) { input.penMouse = false; releaseCheck(); } if (e.button === 2) input.brMouse = false; });
+addEventListener('mouseup', e => { if (e.button === 2) { input.penMouse = false; releaseCheck(); } });
 addEventListener('mousemove', e => {
   if (state !== 'playing' || isTouch) return;
   const k = .0022 * SET.sens * (L && L.invertT > 0 ? -1 : 1);
@@ -1861,7 +1860,7 @@ function noise(x, z, radius, loud) {
   if (CR.room === cur.id) {
     if (CR.state !== 'lunge' && CR.state !== 'leave' && !(CR.grace > 0) && !CR.visiting && Math.hypot(CR.x - x, CR.z - z) < radius) { crHear(x, z); CR.chase = false; }
   } else if (cur.id !== 'living') {
-    if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); }
+    if (loud >= gdist(CR.room, cur.id)) { CR.targetRoom = cur.id; CR.timer = Math.min(CR.timer, 1.4); if (loud >= 2) CR.urgent = true; }
   }
 }
 function crHear(x, z) {
@@ -2382,7 +2381,14 @@ function updateCreature(dt) {
       if (goal && goal !== CR.room) { const path = bfs(CR.room, goal); next = path && path[1]; }
       else { if (goal === CR.room) CR.targetRoom = null; let opts = (adj[CR.room] || []).filter(n => n !== 'living'); if (opts.length > 1 && G.time - (CR.leftAt ?? -99) < 20) opts = opts.filter(n => n !== CR.leftRoom); next = opts.length ? pick(opts) : null; }
       if (next) {
-        if (next === cur.id) { creatureEnters(CR.room); return; }
+        // just left your room? give it 25 s before it comes back, unless you made a really loud noise
+        if (next === cur.id && G.time - (CR.leftAt ?? -99) < 25 && !CR.urgent) {
+          if (CR.targetRoom === cur.id) CR.targetRoom = null;
+          const alt = (adj[CR.room] || []).filter(n => n !== 'living' && n !== cur.id);
+          next = alt.length ? pick(alt) : null;
+        }
+        if (next === cur.id) { CR.urgent = false; creatureEnters(CR.room); return; }
+        if (!next) { CR.timer = rnd(3, 5); return; }
         CR.room = next;
         if (CR.targetRoom === next) CR.targetRoom = null;
       }
@@ -2784,6 +2790,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, noiseAt: (r) => noise(P.x, P.z, 14, r), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
