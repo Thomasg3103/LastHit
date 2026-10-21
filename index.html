@@ -2141,7 +2141,7 @@ function update(dt) {
   const held = penHeld();
   if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
-    L.pull += dt; L.high += dt * 5.5;
+    L.pull += dt; L.high += dt * 8;
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
@@ -2407,7 +2407,7 @@ function updateCreature(dt) {
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
   if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave' && d < Math.min(L.noiseR, 3)) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
-  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 8 && !CR.chase) startLeave(); }
+  if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 5 && !CR.chase) startLeave(); }
   switch (CR.state) {
     case 'wander':
       speed = .7;
