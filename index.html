@@ -2729,9 +2729,11 @@ function render(dt) {
   const lampR = ending ? 0 : lampRadius();
   if (scare) { lamp.intensity = turnToIt ? 14 : 8; lamp.distance = turnToIt ? 12 : 5; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
-  grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : 0;
+  const jumpLit = state === 'ending' && G && G.endPhase === 'jump';
+  grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : jumpLit ? 26 * (.85 + Math.random() * .3) : 0;
+  if (jumpLit) grabLight.position.set(CR.x + (P.x - CR.x) * .4, 2.2, CR.z + (P.z - CR.z) * .4);
   if (scare) grabLight.position.set(CR.x + (P.x - CR.x) * .35, 2.0, CR.z + (P.z - CR.z) * .35);
-  figMat.emissive.setHex(scare ? 0x4a0606 : 0x0b0b0b);
+  figMat.emissive.setHex(scare || jumpLit ? 0x4a0606 : 0x0b0b0b);
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
   if (!ending && G && G.torch) {
     // cheap phone torch: it stutters, more as the battery goes
@@ -2812,7 +2814,7 @@ function render(dt) {
   u.uMotion.value = mo; u.uFlash.value = flickerLight.intensity;
   u.uTime.value = t; u.uHigh.value = hn; u.uGo.value = go; u.uDizzy.value = dz; u.uHold.value = ending ? 0 : L.holding ? 1 : (L.hbPulse || 0) * .7;
   u.uTrail.value = clamp((hn - .5) / .5, 0, 1) * .85 + go * .1;
-  u.uStatic.value = endClose ? .22 : ending ? 0 : Math.min(.5, L.stat + L.near * .08) + (scare ? (turnToIt ? .04 : .2) : 0);
+  u.uStatic.value = endClose ? (G.lungeK > .98 ? .12 : .02) : ending ? 0 : Math.min(.5, L.stat + L.near * .08) + (scare ? (turnToIt ? .04 : .2) : 0);
   u.uRed.value = hn > .75 ? (.5 + .5 * Math.sin(t * 6)) * (hn - .75) * 4 : 0;
   u.uScare.value = scare || endClose ? 1 : 0;
   renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
