@@ -1863,8 +1863,14 @@ renderAch();
 function greenout() { promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
 function caught() {
   // step it back so the whole thing is in view when you're turned to face it
-  { const dx = CR.x - P.x, dz = CR.z - P.z, d = Math.hypot(dx, dz) || 1, want = 1.9;
-    if (d < want) { CR.x = clamp(P.x + dx / d * want, -cur.w / 2 + .4, cur.w / 2 - .4); CR.z = clamp(P.z + dz / d * want, -cur.d / 2 + .4, cur.d / 2 - .4); } }
+  { const want = 1.9, base = Math.atan2(CR.z - P.z, CR.x - P.x);
+    if (Math.hypot(CR.x - P.x, CR.z - P.z) < want) {
+      // keep its direction if there's room, otherwise the nearest direction that has room
+      for (const off of [0, .5, -.5, 1, -1, 1.6, -1.6, 2.4, -2.4, Math.PI]) {
+        const a = base + off, x = P.x + Math.cos(a) * want, z = P.z + Math.sin(a) * want;
+        if (Math.abs(x) < cur.w / 2 - .35 && Math.abs(z) < cur.d / 2 - .35) { CR.x = x; CR.z = z; break; }
+      }
+    } }
   promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
 function gameOver() {
   clearGame();
