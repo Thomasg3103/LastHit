@@ -1245,6 +1245,7 @@ function makeFriend() {
 
 /* ================= persistent scene pieces ================= */
 const creature = makeCreature(); creature.visible = false; scene.add(creature);
+const grabLight = new THREE.PointLight(0xff2020, 0, 9, 1.4); scene.add(grabLight);
 const fakes = [0, 1, 2].map(() => {
   const f = makeCreature(), mats = [];
   f.traverse(o => { if (o.isMesh) { o.material = o.material.clone(); o.material.transparent = true; mats.push(o.material); } });
@@ -1408,7 +1409,7 @@ addEventListener('keyup', e => {
   if (k === ' ') { input.penKey = false; releaseCheck(); }
 });
 const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR', 'lookU', 'lookD']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
-addEventListener('blur', () => { clearInput(); pause(); });
+addEventListener('blur', clearInput);
 document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); saveGame(); } });
 addEventListener('pagehide', () => saveGame());
 cvs.addEventListener('contextmenu', e => e.preventDefault());
@@ -1573,7 +1574,7 @@ function wakeUp(text) {
   state = 'waking'; G.wakeT = 0; fade = 1;
   say(text, 5.5);
 }
-function pause() { if (state !== 'playing') return; promptEl.hidden = true; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
+function pause() { if (state !== 'playing') return; promptEl.hidden = true, promptEl.textContent = ''; if (L) L.nearDoor = null; state = 'paused'; clearInput(); if (L) L.inhaling = false; $('pause').hidden = false; pullEl.hidden = true; }
 function resume() { $('pause').hidden = true; state = 'playing'; if (!padActive) lockPointer(); }
 $('resumeBtn').addEventListener('click', resume);
 $('invFood').addEventListener('click', () => { if (state === 'playing') input.eat = true; });
@@ -1585,7 +1586,7 @@ function quitToTitle() {
   setTorch(false); $('inv').hidden = true; $('hideView').hidden = true; if (AC) A.musicGain.gain.value = 0;
   state = 'title'; G = null;
   for (const id of ['pause', 'score', 'over', 'account']) $(id).hidden = true;
-  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
+  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true, promptEl.textContent = ''; msgEl.classList.remove('show'); roomEl.classList.remove('show');
   if (AC) { A.crGain.gain.value = 0; A.ig.gain.value = 0; A.pGain.gain.value = 0; A.fb.gain.value = 0; A.wet.gain.value = 0; }
   $('title').hidden = false; $('title').scrollTop = 0; refreshTitle(); offerContinue();
 }
@@ -1702,13 +1703,13 @@ function useDoor(dr) {
     noise(dr.x, dr.z, run ? 10 : loud ? 6 : 3.5, loud ? 1 : 0);
     L.openNoisy = loud;
     L.opening = { dr, t: 0, dur: run ? .2 : .55 * (1 + L.high / 100 * .8), to, run };
-    promptEl.hidden = true; L.nearDoor = null;
+    promptEl.hidden = true, promptEl.textContent = ''; L.nearDoor = null;
     state = 'opening';
     return;
   }
   L.openNoisy = run;
   if (dr.stairs) for (let i = 0; i < 6; i++) sfx.myStep(run ? .2 : .1);
-  promptEl.hidden = true; L.nearDoor = null;
+  promptEl.hidden = true, promptEl.textContent = ''; L.nearDoor = null;
   state = 'trans'; L.trans = { t: 0, to, from: cur.id, slam: run, built: false };
 }
 function exhale(coughed) {
@@ -1859,13 +1860,13 @@ function renderAch() {
   $('achCount').textContent = Object.keys(ACHS).filter(k => ACH.some(a => a[0] === k)).length + '/' + ACH.length;
 }
 renderAch();
-function greenout() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
-function caught() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
+function greenout() { promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
+function caught() { promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
 function gameOver() {
   clearGame();
   state = 'over'; $('inv').hidden = true; setTorch(false); if (AC) A.musicGain.gain.value = 0;
   if (document.pointerLockElement) document.exitPointerLock();
-  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
+  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true, promptEl.textContent = ''; msgEl.classList.remove('show'); roomEl.classList.remove('show');
   const got = Object.values(G.items).filter(Boolean).length, s = Math.floor(G.time);
   $('overSub').textContent = G.lastDeath === 'green'
     ? 'You greened out on a stranger\'s floor, and this time the couch never came.'
@@ -1937,17 +1938,22 @@ function update(dt) {
   L.lr = Math.max(lampRadius(), L.inhaling ? 2.2 : 0);
 
   // doors
-  let near = null; const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
+  let near = null, nearScore = Infinity; const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
   for (const dr of cur.doors) {
-    const dx = P.x - dr.x, dz = P.z - dr.z, dn = dx * dr.nx + dz * dr.nz, lat = Math.abs(dx * dr.nz - dz * dr.nx);
-    if (dn < 1.6 && lat < (dr.front ? 1 : .8) && (fx * -dr.nx + fz * -dr.nz) > 0) near = dr;
+    const dx = P.x - dr.x, dz = P.z - dr.z, dist = Math.hypot(dx, dz);
+    if (dist > (dr.front ? 2.4 : 2.1)) continue;
+    // facing toward it (even loosely) wins over just being close; facing straight away doesn't count
+    const facing = dist > .01 ? (fx * -dx + fz * -dz) / dist : 1;
+    if (facing < -.35) continue;
+    const score = dist - facing * .8;
+    if (score < nearScore) { nearScore = score; near = dr; }
   }
   let nearHide = null;
   if (!L.hidden) for (const hd of cur.hides) { const d = Math.hypot(hd.out.x - P.x, hd.out.z - P.z); if (d < .9 && (fx * -hd.nx + fz * -hd.nz) > .2 && (!near || d < .6)) nearHide = hd; }
   if (nearHide || L.hidden) near = null;
   const promptKey = L.hidden ? 'out' : nearHide ? nearHide : near;
   if (promptKey !== L.nearDoor) {
-    L.nearDoor = promptKey; promptEl.hidden = !promptKey;
+    L.nearDoor = promptKey; promptEl.hidden = !promptKey; if (!promptKey) promptEl.textContent = '';
     const tag = isTouch ? '' : '<kbd>E</kbd>';
     if (L.hidden) promptEl.innerHTML = tag + 'Climb out';
     else if (nearHide) promptEl.innerHTML = tag + HIDES[nearHide.kind].label;
@@ -2014,8 +2020,8 @@ function update(dt) {
   let lvl = 0;
   if (CR.room === cur.id) { const cd = Math.hypot(CR.x - P.x, CR.z - P.z); lvl = cd < 3 ? 5 : cd < 5 ? 4 : cd < 8 ? 3 : 2; }
   else if (cur.id !== 'living' && (adj[cur.id] || []).includes(CR.room)) lvl = 1;
-  if (L.high > 50 && Math.random() < dt * (L.high - 50) / 50 * 3) L.senseGlitch = { lvl: Math.random() * 6 | 0, t: rnd(.15, .5) };
-  if (L.senseGlitch) { L.senseGlitch.t -= dt; if (L.senseGlitch.t > 0) lvl = L.senseGlitch.lvl; else L.senseGlitch = null; }
+  if (!L.senseGlitch && L.high > 60 && Math.random() < dt * (L.high - 60) / 40 * .3) L.senseGlitch = { off: pick([-2, -1, 1, 2, 3]), t: rnd(1.2, 2.6) };
+  if (L.senseGlitch) { L.senseGlitch.t -= dt; if (L.senseGlitch.t > 0) lvl = clamp(lvl + L.senseGlitch.off, 0, 5); else L.senseGlitch = null; }
   L.sense = lvl;
   L.beepT = (L.beepT ?? 0) - dt;
   if (lvl > 0 && L.beepT <= 0) { sfx.beep(lvl); L.beepT = [0, 2.2, 1.4, .9, .5, .25][lvl]; sensorEl.classList.add('ping'); L.pingT = .08; }
@@ -2252,7 +2258,7 @@ function creatureEnters(fromRoom) {
 /* ================= ending ================= */
 let outside = null, friend = null;
 function startEnding() {
-  promptEl.hidden = true;
+  promptEl.hidden = true, promptEl.textContent = '';
   clearGame(); G.escapeHigh = L.high; if (L.hidden) leaveHide(true); setTorch(false);
   state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time;
   $('inv').hidden = true;
@@ -2360,10 +2366,10 @@ function render(dt) {
   let shx = rnd(-.5, .5) * L.shake * .02, shy = rnd(-.5, .5) * L.shake * .02;
   const endClose = state === 'ending' && G.endStep === 5 && G.lungeK > .6;
   if (endClose) { shx = rnd(-.025, .025); shy = rnd(-.025, .025); }
-  const turnToIt = scare && L.scT < .55;
+  const turnToIt = scare && L.scT < 1.0;
   if (turnToIt) {
     const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z));
-    P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 12); P.pitch += (.18 - P.pitch) * Math.min(1, dt * 8);
+    P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 7); P.pitch += (.22 - P.pitch) * Math.min(1, dt * 6);
   } else if (scare) {
     if (!L.screamed) { L.screamed = true; sfx.scream(1.6); }
     shx = rnd(-.03, .03); shy = rnd(-.03, .03); P.pitch *= .85; CR.x = P.x - Math.sin(P.yaw) * 1.05; CR.z = P.z - Math.cos(P.yaw) * 1.05;
@@ -2377,8 +2383,11 @@ function render(dt) {
 
   // lights
   const lampR = ending ? 0 : lampRadius();
-  if (scare) { lamp.intensity = turnToIt ? 9 : 6; lamp.distance = turnToIt ? 9 : 4; }
+  if (scare) { lamp.intensity = turnToIt ? 14 : 8; lamp.distance = turnToIt ? 12 : 5; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
+  grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : 0;
+  if (scare) grabLight.position.set(CR.x + (P.x - CR.x) * .35, 2.0, CR.z + (P.z - CR.z) * .35);
+  figMat.emissive.setHex(scare ? 0x4a0606 : 0x0b0b0b);
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
   torch.intensity = !ending && G && G.torch ? 9 * (.85 + Math.random() * .05) * (G.battery < .15 ? (Math.random() < .2 ? .2 : 1) : 1) : 0;
   flashLight.intensity = !ending && L.flash > 0 ? 4 * L.flash : 0;
@@ -2456,7 +2465,7 @@ function render(dt) {
   u.uMotion.value = mo; u.uFlash.value = flickerLight.intensity;
   u.uTime.value = t; u.uHigh.value = hn; u.uGo.value = go; u.uDizzy.value = dz; u.uHold.value = ending ? 0 : L.holding ? 1 : (L.hbPulse || 0) * .7;
   u.uTrail.value = clamp((hn - .5) / .5, 0, 1) * .85 + go * .1;
-  u.uStatic.value = endClose ? .22 : ending ? 0 : Math.min(.5, L.stat + L.near * .08) + (scare ? .25 : 0);
+  u.uStatic.value = endClose ? .22 : ending ? 0 : Math.min(.5, L.stat + L.near * .08) + (scare ? (turnToIt ? .04 : .2) : 0);
   u.uRed.value = hn > .75 ? (.5 + .5 * Math.sin(t * 6)) * (hn - .75) * 4 : 0;
   u.uScare.value = scare || endClose ? 1 : 0;
   renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
@@ -2521,7 +2530,7 @@ function tick(dt) {
   }
   else if (state === 'waking') { G.wakeT += dt; fade = Math.max(0, 1 - G.wakeT / 1.6); if (G.wakeT >= 1.6) state = 'playing'; }
   else if (state === 'greenout') { L.goT += dt; if (L.goT > 3.6) die('green'); }
-  else if (state === 'scare') { L.scT += dt; if (L.scT > 1.75) die('creature'); }
+  else if (state === 'scare') { L.scT += dt; if (L.scT > 2.4) die('creature'); }
   else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 2.4 && G.mode === 'one') gameOver(); else if (L.dieT > 2.4) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
   else if (state === 'ending') updateEnding(dt);
   if (G && L) render(dt); else { renderer.setRenderTarget(null); renderer.clear(); }
@@ -2529,6 +2538,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
