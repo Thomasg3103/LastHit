@@ -57,6 +57,7 @@ html,body{height:100%;margin:0;background:var(--void);color:var(--ash);overflow:
 #prompt kbd{display:inline-block;min-width:1.5em;margin-right:.5em;padding:0 .3em;border:1px solid rgba(207,213,200,.6);border-radius:3px;text-align:center;font-family:inherit}
 #roomName{position:fixed;top:calc(env(safe-area-inset-top,0px) + 18px);left:50%;transform:translateX(-50%);font-family:var(--f-hud);font-size:24px;letter-spacing:.32em;text-transform:uppercase;color:var(--ash);opacity:0;transition:opacity .8s;pointer-events:none;white-space:nowrap;text-shadow:0 0 8px #000}
 #roomName.show{opacity:.85}
+@media (max-width:820px){#roomName{top:calc(env(safe-area-inset-top,0px) + 120px);font-size:19px;letter-spacing:.22em}#toast{top:calc(env(safe-area-inset-top,0px) + 150px)}}
 #roomName.glitch{animation:roomglitch .9s steps(9) 1}
 @keyframes roomglitch{0%,20%,40%{transform:translateX(-50%) skewX(18deg);color:var(--blood)}10%,30%{transform:translateX(-48%);opacity:.2}60%{transform:translateX(-52%) skewX(-10deg)}100%{transform:translateX(-50%)}}
 #inv{position:fixed;left:16px;bottom:calc(env(safe-area-inset-bottom,0px) + 16px);display:flex;gap:8px;pointer-events:none}
@@ -224,7 +225,7 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <dt>WASD</dt><dd>Move</dd>
       <dt>E</dt><dd>Open a door or take the stairs. The higher you are, the more you fumble.</dd>
       <dt>F</dt><dd>Auto-walk on or off. Lets a laptop touchpad keep working while you move.</dd>
-      <dt>Z / X or ← →</dt><dd>Turn without the mouse</dd>
+      <dt>Z / X or ← →</dt><dd>Turn without the mouse. ↑ ↓ look up and down.</dd>
       <dt>Hold R</dt><dd>Run. It hears you running.</dd>
       <dt>Hold SPACE / click</dt><dd>Hit the pen. Let go to exhale and light the room.</dd>
       <dt>Hold Shift</dt><dd>Hold your breath (C or right click also work)</dd>
@@ -259,9 +260,10 @@ h2{font-size:clamp(2.4rem,10vw,4.6rem)}
       <li>The sensor beeps faster the closer it gets. Once you're high, don't trust it completely.</li>
       <li>Pick up snacks and eat them when you need to. Eating brings your high down, but chips and soda are loud.</li>
       <li>Empty bottles and cans make good decoys. Hiding spots make good hiding spots.</li>
-      <li>Every item you find is a save point. Hit 100% and you green out.</li>
+      <li>Every item you find is a save point, but each one leaves you a little higher for good. Hit 100% and you green out.</li>
     </ul>
     <div class="modes">
+      <button class="pen-btn" id="contBtn" type="button" hidden><span class="led"></span>Continue run</button>
       <button class="pen-btn" id="startBtn" type="button" disabled><span class="led"></span>Loading the house…</button>
       <button class="pen-btn hard" id="hardBtn" type="button" disabled><span class="led"></span>One life</button>
     </div>
@@ -840,7 +842,7 @@ function initHouse(seed = null) {
   NOTES.forEach((n, i) => NODES[noteRooms[i]].notes.push(n));
   for (const d of ROOM_DEFS) {
     if (d.id === 'living') continue;
-    const n = d.type === 'kitchen' ? 3 : PARTY.has(d.type) || d.type === 'rec' ? 1 + (R() < .5) : R() < .45 ? 1 : 0;
+    const n = d.type === 'kitchen' ? 2 : PARTY.has(d.type) || d.type === 'rec' ? (R() < .5 ? 1 : 0) : R() < .2 ? 1 : 0;
     for (let i = 0; i < n; i++) NODES[d.id].snacks.push({ kind: pk(['chips', 'chips', 'candy', 'soda', 'soda', 'pizza']), eaten: false });
   }
 }
@@ -1005,6 +1007,11 @@ function stairwell(g, up, wallMat) {
   const hr = C(.02, .02, Math.hypot(n * run, n * rise), MAT.woodDark, .42, (up ? n * rise / 2 : -n * rise / 2) + .9, -n * run / 2, g, 6);
   hr.rotation.x = Math.PI / 2 + (up ? 1 : -1) * Math.atan2(rise, run);
 }
+function doorOutline(r, g, halfW, top) {
+  if (!r.glowMat) r.glowMat = new THREE.MeshBasicMaterial({ color: 0xffd9a0, transparent: true, opacity: 0, depthWrite: false });
+  for (const sx of [-1, 1]) { const m = new THREE.Mesh(new THREE.BoxGeometry(.03, top, .01), r.glowMat); m.position.set(sx * halfW, top / 2, .085); g.add(m); }
+  const h = new THREE.Mesh(new THREE.BoxGeometry(halfW * 2 + .03, .03, .01), r.glowMat); h.position.set(0, top, .085); g.add(h);
+}
 function buildDoor(r, dr) {
   const g = new THREE.Group(); g.position.set(dr.x, 0, dr.z); g.rotation.y = dr.rot; r.group.add(g);
   if (dr.to === 'outside') {
@@ -1013,11 +1020,12 @@ function buildDoor(r, dr) {
     B(.04, .14, .04, MAT.brass, -.06, 1.05, .08, g); B(.04, .14, .04, MAT.brass, .06, 1.05, .08, g);
     const p = new THREE.Vector3(0, 1.8, .5); g.updateMatrixWorld(true); const w = g.localToWorld(p);
     addLight(r, w.x, w.y, w.z, 0x7f9cc8, 1.4, 4, 'door');
-    dr.front = true; return;
+    doorOutline(r, g, .88, 2.38); dr.front = true; return;
   }
   const diff = (NODES[dr.to].floor ?? 0) - (r.node.floor ?? 0);
   for (const s of [-1, 1]) B(.08, 2.15, .12, MAT.trim, s * .5, 1.075, 0, g);
   B(1.08, .08, .12, MAT.trim, 0, 2.17, 0, g);
+  doorOutline(r, g, .55, 2.22);
   if (diff !== 0) {
     stairwell(g, diff > 0, MAT[(STYLE[r.node.type] || STYLE.storage)[0]]);
     const sign = new THREE.Mesh(new THREE.PlaneGeometry(.6, .15), new THREE.MeshStandardMaterial({ map: textTex(diff > 0 ? 'STAIRS  UP' : 'STAIRS  DOWN', 256, 64, '#d9d2bf', 30, '#1a1612'), roughness: .8 }));
@@ -1035,8 +1043,8 @@ function debris(r, n) {
     const sp = randomFloor(r, .1), k = r.rand();
     let o;
     if (k < .45) { o = C(.04, .03, .11, MAT.red, sp.x, .055, sp.z, r.group, 8); if (r.rand() < .5) { o.rotation.z = Math.PI / 2; o.position.y = .04; } }
-    else if (k < .7) { o = C(.035, .035, .26, MAT.greenGlass, sp.x, .035, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'bottle' }); }
-    else if (k < .9) { o = C(.033, .033, .12, MAT.can, sp.x, .033, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'can' }); }
+    else if (k < .7) { o = C(.035, .035, .26, MAT.greenGlass, sp.x, .035, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; if (r.rand() < .35) r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'bottle' }); }
+    else if (k < .9) { o = C(.033, .033, .12, MAT.can, sp.x, .033, sp.z, r.group, 8); o.rotation.z = Math.PI / 2; if (r.rand() < .35) r.throwables.push({ mesh: o, x: sp.x, z: sp.z, kind: 'can' }); }
     else o = B(.4, .04, .4, MAT.card, sp.x, .02, sp.z, r.group);
     o.rotation.y = r.rand() * TAU;
   }
@@ -1371,7 +1379,7 @@ const penHeld = () => input.penKey || input.penMouse || input.penTouch || input.
 const breathHeld = () => input.brKey || input.brMouse || input.brTouch || input.brPad;
 const runHeld = () => input.run || input.padRun;
 const releaseCheck = () => { if (!penHeld() && L) L.coughLock = false; };
-const keyMap = { w: 'fwd', arrowup: 'fwd', s: 'back', arrowdown: 'back', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', z: 'turnL', x: 'turnR' };
+const keyMap = { w: 'fwd', arrowup: 'lookU', s: 'back', arrowdown: 'lookD', a: 'left', d: 'right', arrowleft: 'turnL', arrowright: 'turnR', z: 'turnL', x: 'turnR' };
 let locked = false, hadLock = false;
 function lockPointer() { if (isTouch || padActive) return; try { const p = cvs.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
 document.addEventListener('pointerlockchange', () => { locked = document.pointerLockElement === cvs; if (locked) hadLock = true; else if (state === 'playing' && hadLock) pause(); });
@@ -1387,9 +1395,9 @@ addEventListener('keydown', e => {
   if (k === 't' && state === 'playing' && !e.repeat) input.torch = true;
   if (k === 'shift' || k === 'c') input.brKey = true;
   if (k === 'f' && state === 'playing' && !e.repeat) { input.auto = !input.auto; say(input.auto ? 'Auto-walk on. Steer with the touchpad. F or S to stop.' : 'Auto-walk off.', 2); }
-  if ((k === 's' || k === 'arrowdown') && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
+  if (k === 's' && input.auto) { input.auto = false; say('Auto-walk off.', 1.5); }
   if (k === ' ' && state === 'playing') input.penKey = true;
-  if (k === 'p' && state === 'playing') pause();
+  if ((k === 'p' || k === 'escape') && state === 'playing') pause();
   if (k === 'enter' && ready && (state === 'title' || state === 'score' || state === 'over')) newRun(state === 'title' ? 'normal' : G.mode);
 });
 addEventListener('keyup', e => {
@@ -1399,8 +1407,10 @@ addEventListener('keyup', e => {
   if (k === 'shift' || k === 'c') input.brKey = false;
   if (k === ' ') { input.penKey = false; releaseCheck(); }
 });
-const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
-addEventListener('blur', clearInput);
+const clearInput = () => { for (const k of ['fwd', 'back', 'left', 'right', 'turnL', 'turnR', 'lookU', 'lookD']) input[k] = 0; input.run = input.penKey = input.penMouse = input.brKey = input.brMouse = input.auto = false; };
+addEventListener('blur', () => { clearInput(); pause(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); saveGame(); } });
+addEventListener('pagehide', () => saveGame());
 cvs.addEventListener('contextmenu', e => e.preventDefault());
 cvs.addEventListener('mousedown', e => {
   if (state !== 'playing' || isTouch) return;
@@ -1523,16 +1533,35 @@ const freshLife = () => ({ high: 0, light: .5, inhaling: false, pull: 0, coughLo
 function newRun(mode = 'normal', opts = {}) {
   initAudio();
   if (AC) { A.master.gain.cancelScheduledValues(AC.currentTime); A.master.gain.setValueAtTime(.9 * SET.vol, AC.currentTime); A.droneGain.gain.value = .045; A.windGain.gain.value = .025; A.musicGain.gain.value = .07; }
-  initHouse(opts.daily ? hashStr('lasthit-' + opts.daily) : null);
-  G = { mode, daily: opts.daily || null, runId: null, snackBag: [], decoys: 0, battery: 1, torch: false, buzzT: rnd(30, 55), snacksEaten: 0, decoyHits: 0, notesRead: new Set(), scareAt: rnd(80, 220), scareDone: false, newAch: [], items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0 };
-  if (supa && me) { const g = G; supa.rpc('start_run', { p_mode: mode, p_daily: !!opts.daily }).then(({ data, error }) => { if (!error) g.runId = data; }); }
+  const R0 = opts.restore || null, seed = R0 ? R0.seed : (Math.random() * 2147483647 | 0);
+  initHouse(opts.daily ? hashStr('lasthit-' + opts.daily) : seed);
+  G = { mode, daily: opts.daily || null, runId: null, snackBag: [], decoys: 0, battery: 1, torch: false, buzzT: rnd(30, 55), snacksEaten: 0, decoyHits: 0, notesRead: new Set(), scareAt: rnd(80, 220), scareDone: false, newAch: [], items: { phone: false, keys: false, jacket: false }, pulls: 0, peak: 0, deathsC: 0, deathsG: 0, time: 0, ringT: 14, ambT: 3, firstRing: true, endT: 0, seed };
+  if (R0) {
+    for (const k of ['pulls', 'peak', 'deathsC', 'deathsG', 'time', 'decoys', 'battery', 'runId']) if (R0[k] != null) G[k] = R0[k];
+    Object.assign(G.items, R0.items || {}); G.snackBag = R0.snackBag || [];
+    for (const id in NODES) NODES[id].items = NODES[id].items.filter(i => !G.items[i.kind]);
+  }
+  if (supa && me && !(R0 && R0.runId)) { const g = G; supa.rpc('start_run', { p_mode: mode, p_daily: !!opts.daily }).then(({ data, error }) => { if (!error) g.runId = data; }); }
   $('title').hidden = true; $('score').hidden = true; $('over').hidden = true; $('pause').hidden = true;
   $('modeTag').hidden = mode !== 'one' && !opts.daily; $('modeTag').textContent = opts.daily ? 'Daily house' : 'One life';
   $('inv').hidden = false; $('hideView').hidden = true;
   scene.fog = null; scene.background.setHex(0x000000);
-  wakeUp("You wake on a couch you don't recognise. 4 am. Power's out. Find your phone, your keys and your jacket.");
-  lockPointer();
+  wakeUp(R0 ? 'You wake on the couch. Your pockets still have what you found.' : "You wake on a couch you don't recognise. 4 am. Power's out. Find your phone, your keys and your jacket.");
+  lockPointer(); saveGame();
 }
+function saveGame() {
+  if (!G || !G.seed || G.daily || !['playing', 'paused', 'waking', 'trans', 'opening'].includes(state)) return;
+  const d = { seed: G.seed, mode: G.mode, items: G.items, pulls: G.pulls, peak: G.peak, deathsC: G.deathsC, deathsG: G.deathsG, time: G.time, snackBag: G.snackBag, decoys: G.decoys, battery: G.battery, runId: G.runId, at: Date.now() };
+  try { localStorage.setItem('lasthit.save', JSON.stringify(d)); } catch (e) {}
+}
+function clearGame() { try { localStorage.removeItem('lasthit.save'); } catch (e) {} $('contBtn').hidden = true; }
+function savedGame() { try { const d = JSON.parse(localStorage.getItem('lasthit.save')); return d && Date.now() - d.at < 864e5 ? d : null; } catch (e) { return null; } }
+function offerContinue() {
+  const d = savedGame(), b = $('contBtn');
+  b.hidden = !d;
+  if (d) b.lastChild.textContent = `Continue run (${Object.values(d.items).filter(Boolean).length}/3 found${d.mode === 'one' ? ', one life' : ''})`;
+}
+$('contBtn').addEventListener('click', () => { const d = savedGame(); if (d) newRun(d.mode, { restore: d }); });
 function wakeUp(text) {
   L = freshLife(); SCENT = []; noteEl.hidden = true;
   resetLayout();
@@ -1552,12 +1581,13 @@ $('invDecoy').addEventListener('click', () => { if (state === 'playing') input.t
 $('invPhone').addEventListener('click', () => { if (state === 'playing') input.torch = true; });
 promptEl.addEventListener('click', () => { if (state === 'playing') input.use = true; });
 function quitToTitle() {
+  clearGame();
   setTorch(false); $('inv').hidden = true; $('hideView').hidden = true; if (AC) A.musicGain.gain.value = 0;
   state = 'title'; G = null;
   for (const id of ['pause', 'score', 'over', 'account']) $(id).hidden = true;
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
   if (AC) { A.crGain.gain.value = 0; A.ig.gain.value = 0; A.pGain.gain.value = 0; A.fb.gain.value = 0; A.wet.gain.value = 0; }
-  $('title').hidden = false; $('title').scrollTop = 0; refreshTitle();
+  $('title').hidden = false; $('title').scrollTop = 0; refreshTitle(); offerContinue();
 }
 $('quitBtn').addEventListener('click', quitToTitle);
 $('pauseSettings').addEventListener('click', () => openSettings('pause'));
@@ -1588,7 +1618,7 @@ function enterRoom(id, from, slam) {
   fakes.forEach(f => { f.active = false; f.f.visible = false; });
   smokePool.forEach(s => { s.life = s.max; s.s.visible = false; });
   if (CR.room === id) { placeCreatureFar(); if (L.openNoisy) { crHear(P.x, P.z); CR.grace = 1.2; } }
-  else if (from !== null && id !== 'living' && G.time - (G.lastVisit ?? -99) > 45 && Math.random() < .25) creatureVisit(dr);
+  else if (from !== null && id !== 'living' && G.time - (G.lastVisit ?? -99) > 45 && Math.random() < .25 + Object.values(G.items).filter(Boolean).length * .08) creatureVisit(dr);
   if (node.type === 'fakeliving') setTimeout(() => { if (cur && cur.id === id) say("This isn't the living room.", 2.5); }, 1600);
 }
 // It's already standing in the room when you walk in: sniffing, harmless for a few seconds, then it leaves.
@@ -1654,10 +1684,9 @@ function useDoor(dr) {
   if (dr.front) {
     const missing = Object.keys(G.items).filter(k => !G.items[k]);
     if (!missing.length) { startEnding(); return; }
-    if (L.lockCd <= 0) {
-      sfx.rattle({ x: dr.x, y: 1.1, z: dr.z }); noise(dr.x, dr.z, 7, 1); L.lockCd = 2.5;
-      say(`The front door won't open. You still need your ${missing.map(k => ITEM_NAMES[k]).join(missing.length > 2 ? ', ' : ' and ').replace(/, (?=[^,]*$)/, ' and ')}.`, 3);
-    }
+    if (L.lockCd <= 0) { sfx.rattle({ x: dr.x, y: 1.1, z: dr.z }); noise(dr.x, dr.z, 7, 1); L.lockCd = 2.5; }
+    const list = missing.map(k => ITEM_NAMES[k]), names = list.length > 1 ? list.slice(0, -1).join(', ') + ' and ' + list[list.length - 1] : list[0];
+    say(`The front door won't open. You still need your ${names}.`, 3.2);
     return;
   }
   let to = dr.to;
@@ -1687,6 +1716,7 @@ function exhale(coughed) {
   L.inhaling = false; G.pulls++;
   L.light = Math.min(1.25, Math.max(L.light, .25 + p * .33));
   SCENT.push({ room: cur.id, x: P.x, z: P.z, s: .45 + p * .3 });
+  L.doorGlow = 1;
   const n = 8 + p * 10, cy = Math.cos(P.yaw), sy = Math.sin(P.yaw), cp = Math.cos(P.pitch);
   const fx = -sy * cp, fy = Math.sin(P.pitch), fz = -cy * cp;
   let spawned = 0;
@@ -1830,8 +1860,9 @@ function renderAch() {
 }
 renderAch();
 function greenout() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
-function caught() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.inhaling = false; L.holding = false; sfx.scream(); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); lamp.color.setHex(0xff2a2a); }
+function caught() { promptEl.hidden = true; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
 function gameOver() {
+  clearGame();
   state = 'over'; $('inv').hidden = true; setTorch(false); if (AC) A.musicGain.gain.value = 0;
   if (document.pointerLockElement) document.exitPointerLock();
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; promptEl.hidden = true; msgEl.classList.remove('show'); roomEl.classList.remove('show');
@@ -1843,14 +1874,15 @@ function gameOver() {
   $('oTime').textContent = Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0');
   $('over').hidden = false;
 }
-function die(kind) { G.lastDeath = kind; if (kind === 'creature') G.deathsC++; else G.deathsG++; state = 'dying'; L.dieT = 0; lamp.color.setHex(0xffe2c4); }
+function die(kind) { G.lastDeath = kind; say(kind === 'green' ? 'You greened out.' : 'It got you.', 2.4, true); if (kind === 'creature') G.deathsC++; else G.deathsG++; state = 'dying'; L.dieT = 0; lamp.color.setHex(0xffe2c4); }
 
 /* ================= update ================= */
 function update(dt) {
   G.time += dt;
+  G.saveT = (G.saveT || 0) + dt; if (G.saveT > 5) { G.saveT = 0; saveGame(); }
   // breath
   if (breathHeld() && L.breath > 0 && L.breathLock <= 0 && !L.inhaling) {
-    L.holding = true; L.breath -= dt / (14 * (1 - L.high / 100 * .5)); L.holdT = (L.holdT || 0) + dt;
+    L.holding = true; L.breath -= dt / (11 * (1 - L.high / 100 * .5)); L.holdT = (L.holdT || 0) + dt;
     if (L.breath <= 0) { L.breath = 0; L.holding = false; L.holdT = 0; L.breathLock = 3; sfx.gasp(); sfx.cough(); L.shake = 3; say('You run out of air and start coughing.', 2.5); noise(P.x, P.z, 14, 2); }
   } else {
     if (L.holding) {
@@ -1864,6 +1896,7 @@ function update(dt) {
   // movement
   let f = Math.min(1, (input.fwd - input.back) - input.ty - (input.gy || 0) + (input.auto ? 1 : 0)), s = (input.right - input.left) + input.tx + (input.gx || 0);
   let turn = (input.turnR - input.turnL) * 2.2 * dt;
+  P.pitch = clamp(P.pitch + ((input.lookU || 0) - (input.lookD || 0)) * 1.6 * dt, -1.3, 1.3);
   if (L.invertT > 0) { L.invertT -= dt; f = -f; s = -s; turn = -turn; }
   else if (L.high > 82 && Math.random() < dt * .1) { L.invertT = 1.6; say('Your legs stop listening.', 1.8); }
   P.yaw -= turn;
@@ -1891,12 +1924,14 @@ function update(dt) {
   const held = penHeld();
   if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
-    L.pull += dt; L.high += dt * 8;
+    L.pull += dt; L.high += dt * 11;
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
-  L.light = Math.max(0, L.light - dt * .08);
-  if (!L.inhaling) L.high = Math.max(0, L.high - dt * .3);
+  L.light = Math.max(0, L.light - dt * .05);
+  L.doorGlow = Math.max(0, (L.doorGlow || 0) - dt / 12);
+  const floorH = Object.values(G.items).filter(Boolean).length * 12;
+  if (!L.inhaling) L.high = Math.max(Math.min(L.high, floorH), L.high - dt * .18);
   G.peak = Math.max(G.peak, L.high);
   if (L.high >= 100) { L.high = 100; G.peak = 100; hud(); greenout(); return; }
   L.lr = Math.max(lampRadius(), L.inhaling ? 2.2 : 0);
@@ -1905,7 +1940,7 @@ function update(dt) {
   let near = null; const fx = -Math.sin(P.yaw), fz = -Math.cos(P.yaw);
   for (const dr of cur.doors) {
     const dx = P.x - dr.x, dz = P.z - dr.z, dn = dx * dr.nx + dz * dr.nz, lat = Math.abs(dx * dr.nz - dz * dr.nx);
-    if (dn < 1.35 && lat < (dr.front ? .9 : .65) && (fx * -dr.nx + fz * -dr.nz) > .35) near = dr;
+    if (dn < 1.6 && lat < (dr.front ? 1 : .8) && (fx * -dr.nx + fz * -dr.nz) > 0) near = dr;
   }
   let nearHide = null;
   if (!L.hidden) for (const hd of cur.hides) { const d = Math.hypot(hd.out.x - P.x, hd.out.z - P.z); if (d < .9 && (fx * -hd.nx + fz * -hd.nz) > .2 && (!near || d < .6)) nearHide = hd; }
@@ -1944,6 +1979,7 @@ function update(dt) {
       const node = cur.node; node.items = node.items.filter(x => x.kind !== k); delete cur.items[k];
       sfx.pickup();
       const left = Object.keys(G.items).filter(x => !G.items[x]);
+      L.high = Math.max(L.high, Object.values(G.items).filter(Boolean).length * 12);
       say(left.length ? `Got your ${ITEM_NAMES[k]}. Saved. Still need: ${left.map(x => ITEM_NAMES[x]).join(', ')}.` : `Got your ${ITEM_NAMES[k]}. That's everything. Get to the front door.`, 4);
     }
   }
@@ -1953,7 +1989,7 @@ function update(dt) {
     say(`Picked up ${SNACKS[sk.sn.kind].name}.` + (G.snackBag.length === 1 && !G.toldEat ? (isTouch ? ' Tap the food icon to eat it.' : ' Press Q to eat it.') : ''), 2.4); G.toldEat = true;
   }
   for (const th of cur.throwables) {
-    if (th.taken || G.decoys >= 3 || Math.hypot(th.x - P.x, th.z - P.z) > .6) continue;
+    if (th.taken || G.decoys >= 2 || Math.hypot(th.x - P.x, th.z - P.z) > .6) continue;
     th.taken = true; th.mesh.visible = false; G.decoys++; sfx.pocket();
     if (!G.toldThrow) { G.toldThrow = true; say(`Picked up ${th.kind === 'can' ? 'an empty can' : 'an empty bottle'}. ` + (isTouch ? 'Tap the bottle icon to throw it.' : 'Press G to throw it.') + ' It goes for the noise.', 3.4); }
   }
@@ -1961,7 +1997,7 @@ function update(dt) {
   if (input.throw) { input.throw = false; throwDecoy(); }
   if (input.torch) { input.torch = false; setTorch(!G.torch); }
   updateProjectiles(dt);
-  if (L.snackDrop > 0) { const k = Math.min(L.snackDrop, dt * 8); L.high = Math.max(0, L.high - k); L.snackDrop -= k; }
+  if (L.snackDrop > 0) { const k = Math.min(L.snackDrop, dt * 8); L.high = Math.max(Object.values(G.items).filter(Boolean).length * 12, L.high - k); L.snackDrop -= k; }
   let note = null; for (const n of cur.notes) if (Math.hypot(n.x - P.x, n.z - P.z) < 1.3) note = n;
   if (note !== L.noteShown) { L.noteShown = note; noteEl.hidden = !note; if (note) { noteEl.textContent = note.text; G.notesRead.add(note.text); if (G.notesRead.size >= NOTES.length) unlock('bookworm'); } }
 
@@ -2118,12 +2154,19 @@ function updateCreature(dt) {
   // in this room
   CR.grace = Math.max(0, (CR.grace || 0) - dt);
   // hold your breath and it loses you: after a couple of silent seconds it gives up and leaves
-  if (L.holding && CR.state !== 'lunge' && CR.state !== 'leave') {
-    CR.calm = (CR.calm || 0) + dt;
-    if (CR.calm > (L.hidden ? 1.2 : 2)) { CR.calm = 0; CR.chase = false; CR.cloud = null; CR.targetRoom = null; startLeave(true); if (CR.state === 'leave') say('"It lost me."', 2.2, true); }
+  CR.wary = Math.max(0, (CR.wary || 0) - dt / 40);
+  if (L.holding && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave') {
+    // your own smoke gives you away: it follows a fresh cloud near you instead of giving up
+    let near = null; for (const c of SCENT) if (c.room === cur.id && c.s > .25 && Math.hypot(c.x - P.x, c.z - P.z) < 2.5 && (!near || c.s > near.s)) near = c;
+    if (near && !L.hidden) { if (CR.cloud !== near) { CR.state = 'track'; CR.tx = near.x; CR.tz = near.z; CR.cloud = near; CR.chase = false; } CR.calm = 0; }
+    else {
+      CR.calm = (CR.calm || 0) + dt;
+      // each time it loses you it takes longer to fool it again
+      if (CR.calm > (L.hidden ? 1.6 : 3.2) + CR.wary) { CR.calm = 0; CR.wary += 1.5; CR.chase = false; CR.cloud = null; CR.targetRoom = null; startLeave(true); if (CR.state === 'leave') say('"It lost me."', 2.2, true); }
+    }
   } else if (!L.holding) CR.calm = 0;
   const d = Math.hypot(P.x - CR.x, P.z - CR.z);
-  if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
+  if (CR.grace <= 0 && !CR.visiting && CR.state !== 'lunge' && CR.state !== 'windup' && CR.state !== 'leave' && d < L.noiseR) { if (d < 2.1) startLunge(); else crHear(P.x, P.z); }
   let speed = 0, tx = CR.tx, tz = CR.tz, sniffing = false;
   if (CR.state !== 'leave' && CR.state !== 'lunge') { CR.idleT += dt; if (CR.idleT > 12 && !CR.chase) startLeave(); }
   switch (CR.state) {
@@ -2146,6 +2189,11 @@ function updateCreature(dt) {
     case 'track':
       speed = CR.chase ? runSpeed() * .88 : 1.6 + Object.values(G.items).filter(Boolean).length * .15;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.chase = false; CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
+      break;
+    case 'windup':
+      CR.windT -= dt; CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
+      if (L.holding) { CR.state = 'sniff'; CR.sniffT = 1.6; }
+      else if (CR.windT <= 0) lungeNow();
       break;
     case 'lunge':
       CR.lungeT -= dt; CR.x += CR.ldx * 7 * dt; CR.z += CR.ldz * 7 * dt;
@@ -2175,13 +2223,14 @@ function updateCreature(dt) {
   if (mv > .0001) CR.yaw = Math.atan2(CR.x - ox, CR.z - oz);
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .9 : .6); if (d < 6 && Math.random() < .4) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .2); }
-  if (CR.grace <= 0 && !CR.visiting && !(L.holding && CR.state !== 'lunge') && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && L.holding) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   if (L.hidden && d < 3) unlock('hideseek');
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
   CR.sniffing = sniffing;
 }
-function startLunge() { CR.state = 'lunge'; CR.lungeT = .55; const d = Math.hypot(P.x - CR.x, P.z - CR.z) || 1; CR.ldx = (P.x - CR.x) / d; CR.ldz = (P.z - CR.z) / d; sfx.growl(crWhere(), .45); }
+function startLunge() { CR.state = 'windup'; CR.windT = .6; sfx.growl(crWhere(), .9); }
+function lungeNow() { CR.state = 'lunge'; CR.lungeT = .55; const d = Math.hypot(P.x - CR.x, P.z - CR.z) || 1; CR.ldx = (P.x - CR.x) / d; CR.ldz = (P.z - CR.z) / d; sfx.growl(crWhere(), .45); }
 function startLeave(away = false) {
   let dr = null;
   if (CR.targetRoom && CR.targetRoom !== cur.id) { const path = bfs(cur.id, CR.targetRoom); if (path) dr = cur.doors.find(x => x.to === path[1]); }
@@ -2204,7 +2253,7 @@ function creatureEnters(fromRoom) {
 let outside = null, friend = null;
 function startEnding() {
   promptEl.hidden = true;
-  G.escapeHigh = L.high; if (L.hidden) leaveHide(true); setTorch(false);
+  clearGame(); G.escapeHigh = L.high; if (L.hidden) leaveHide(true); setTorch(false);
   state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time;
   $('inv').hidden = true;
   hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; roomEl.classList.remove('show'); msgEl.classList.remove('show');
@@ -2311,7 +2360,14 @@ function render(dt) {
   let shx = rnd(-.5, .5) * L.shake * .02, shy = rnd(-.5, .5) * L.shake * .02;
   const endClose = state === 'ending' && G.endStep === 5 && G.lungeK > .6;
   if (endClose) { shx = rnd(-.025, .025); shy = rnd(-.025, .025); }
-  if (scare) { shx = rnd(-.03, .03); shy = rnd(-.03, .03); P.pitch *= .85; CR.x = P.x - Math.sin(P.yaw) * 1.05; CR.z = P.z - Math.cos(P.yaw) * 1.05; }
+  const turnToIt = scare && L.scT < .55;
+  if (turnToIt) {
+    const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z));
+    P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 12); P.pitch += (.18 - P.pitch) * Math.min(1, dt * 8);
+  } else if (scare) {
+    if (!L.screamed) { L.screamed = true; sfx.scream(1.6); }
+    shx = rnd(-.03, .03); shy = rnd(-.03, .03); P.pitch *= .85; CR.x = P.x - Math.sin(P.yaw) * 1.05; CR.z = P.z - Math.cos(P.yaw) * 1.05;
+  }
   const dz = ending ? 0 : L.dizzy, mo = mot();
   shx *= mo; shy *= mo;
   const eyeY = ending ? P.y : L.hidden ? HIDES[L.hidden.hd.kind].y : EYE;
@@ -2321,7 +2377,7 @@ function render(dt) {
 
   // lights
   const lampR = ending ? 0 : lampRadius();
-  if (scare) { lamp.intensity = 6; lamp.distance = 4; }
+  if (scare) { lamp.intensity = turnToIt ? 9 : 6; lamp.distance = turnToIt ? 9 : 4; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
   torch.intensity = !ending && G && G.torch ? 9 * (.85 + Math.random() * .05) * (G.battery < .15 ? (Math.random() < .2 ? .2 : 1) : 1) : 0;
@@ -2334,6 +2390,7 @@ function render(dt) {
     else if (lt.kind === 'laptop') k = .95 + Math.sin(t * .5) * .05;
     lt.L.intensity = lt.base * k;
   }
+  if (cur && cur.glowMat) cur.glowMat.opacity = ending ? 0 : .55 * (L.doorGlow || 0);
   if (cur && cur.flame) cur.flame.scale.set(.07 + Math.random() * .015, .13 + Math.random() * .03, 1);
 
   // pen
@@ -2354,6 +2411,7 @@ function render(dt) {
     animCreature(creature, CR.x + (close ? rnd(-.02, .02) : 0), CR.z, CR.yaw, lk > 0 && !close ? 1 : 0, G.endStep >= 2 && G.endStep < 4, (EYE - 2.3) * lk);
     creature.userData.mouth.scale.set(1, 1 + lk * (1.6 + Math.random() * .6), 1);
   }
+  else if (scare && turnToIt) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false); creature.userData.mouth.scale.set(1, 1.8, 1); }
   else if (scare) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false, EYE - 2.3 + shy); creature.userData.mouth.scale.set(1, 2.2 + Math.random() * .5, 1); }
   else if (creature.visible) { creature.userData.mouth.scale.set(1, 1, 1); animCreature(creature, CR.x, CR.z, CR.yaw, CR.moving, CR.sniffing); }
   for (const fk of fakes) if (fk.active) animCreature(fk.f, fk.x, fk.z, Math.atan2(P.x - fk.x, P.z - fk.z), 0, Math.sin(t * .5 + fk.x) > 0);
@@ -2463,13 +2521,15 @@ function tick(dt) {
   }
   else if (state === 'waking') { G.wakeT += dt; fade = Math.max(0, 1 - G.wakeT / 1.6); if (G.wakeT >= 1.6) state = 'playing'; }
   else if (state === 'greenout') { L.goT += dt; if (L.goT > 3.6) die('green'); }
-  else if (state === 'scare') { L.scT += dt; if (L.scT > 1.2) die('creature'); }
-  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 1.3 && G.mode === 'one') gameOver(); else if (L.dieT > 1.3) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
+  else if (state === 'scare') { L.scT += dt; if (L.scT > 1.75) die('creature'); }
+  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 2.4 && G.mode === 'one') gameOver(); else if (L.dieT > 2.4) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
   else if (state === 'ending') updateEnding(dt);
   if (G && L) render(dt); else { renderer.setRenderTarget(null); renderer.clear(); }
 }
 requestAnimationFrame(frame);
 ready = true;
+offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
