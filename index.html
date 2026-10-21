@@ -2606,7 +2606,7 @@ function endJump(dt) {
   CR.x = G.jumpFrom.x + (to.x - G.jumpFrom.x) * ek; CR.z = G.jumpFrom.z + (to.z - G.jumpFrom.z) * ek;
   G.jumpY = (1 - k) * 1.1 + Math.sin(k * Math.PI) * .6 + (EYE - 2.3) * k;
   CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
-  const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z)); P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 10); P.pitch += (.1 - P.pitch) * Math.min(1, dt * 8);
+  const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z)); P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 10); P.pitch += (-.06 - P.pitch) * Math.min(1, dt * 8);
   G.endStep = 5; G.lungeK = k;
   if (G.jumpT > 1.05) {
     // smash cut to black and silence, then the morning plays out as before
@@ -2888,7 +2888,6 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
-if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, startEnding: () => startEnding(), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
