@@ -1565,6 +1565,7 @@ const sfx = {
   hiss(where) { burst({ type: 'highpass', f: 5000, dur: 1.8, g: .05, attack: .3, where }); },
   rain(where) { for (let i = 0; i < 18; i++) burst({ type: 'bandpass', f: rnd(3000, 7000), q: 2, dur: .03, g: .06, at: Math.random() * 2, where }); },
   boards(where) { const f = rnd(220, 360); tone({ f, f2: f * .8, dur: .35, type: 'sawtooth', g: .05, attack: .05, where }); burst({ f: f * 2.5, q: 9, dur: .3, g: .07, attack: .05, where }); },
+  powerDown() { tone({ f: 120, f2: 30, dur: .7, type: 'sawtooth', g: .12 }); burst({ type: 'lowpass', f: 400, dur: .25, g: .3 }); burst({ type: 'highpass', f: 4000, dur: .04, g: .2 }); },
   pocket() { burst({ type: 'bandpass', f: 1800, q: 2, dur: .12, g: .08 }); },
   rustle() { for (let i = 0; i < 4; i++) burst({ type: 'bandpass', f: rnd(900, 2200), q: 1.5, dur: .18, g: .12, at: i * .09 }); },
   whoosh() { burst({ type: 'bandpass', f: 600, f2: 2400, q: 1.5, dur: .3, g: .12, attack: .05 }); },
@@ -1769,6 +1770,14 @@ function offerContinue() {
   if (d) b.lastChild.textContent = `Continue run (${Object.values(d.items).filter(Boolean).length}/3 found${d.mode === 'one' ? ', one life' : ''})`;
 }
 $('contBtn').addEventListener('click', () => { const d = savedGame(); if (d) newRun(d.mode, { restore: d }); });
+// items you haven't found yet end up somewhere new each time you die
+function scatterItems() {
+  if (!G) return;
+  const left = ['phone', 'keys', 'jacket'].filter(k => !G.items[k]);
+  for (const id in NODES) NODES[id].items = NODES[id].items.filter(i => !left.includes(i.kind));
+  const rooms = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id));
+  left.forEach((kind, i) => NODES[rooms[i]].items.push({ kind, nearLight: !!NODES[rooms[i]].light }));
+}
 function wakeUp(text) {
   L = freshLife(); SCENT = []; noteEl.hidden = true;
   resetLayout();
@@ -2572,13 +2581,14 @@ function buildOutside() {
   const gr = mk(scaleUV(new THREE.PlaneGeometry(60, 60), 20, 20), MAT.grass, 0, 0, -10); gr.rotation.x = -Math.PI / 2; gr.castShadow = false; outside.add(gr);
   B(4, .15, 2.4, MAT.wood, 0, .075, .6, outside); B(1.4, .02, 12, MAT.concrete, 0, .01, -6.5, outside);
   C(.06, .09, 5, MAT.metal, 3.4, 2.5, -11, outside, 8); B(1.2, .08, .08, MAT.metal, 2.8, 4.95, -11, outside);
-  B(.4, .12, .25, new THREE.MeshBasicMaterial({ color: 0xffd090 }), 2.25, 4.88, -11, outside);
   const sl = new THREE.PointLight(0xffb060, 34, 30, 1.4); sl.position.set(2.25, 4.6, -11); outside.add(sl);
+  const lampHead = B(.4, .12, .25, new THREE.MeshBasicMaterial({ color: 0xffd090 }), 2.25, 4.88, -11, outside);
   for (let x = -14; x <= 14; x += 1.4) B(.08, 1.1, .08, MAT.woodDark, x, .55, -16, outside);
   B(28.2, .08, .05, MAT.woodDark, 0, .9, -16, outside);
   for (let i = 0; i < 14; i++) { const tr = mk(new THREE.ConeGeometry(rnd(1, 2), rnd(5, 9), 7), MAT.black, rnd(-20, 20), 3.5, rnd(-28, -19)); outside.add(tr); }
-  outside.add(new THREE.AmbientLight(0x2a3550, 1.8));
+  const amb = new THREE.AmbientLight(0x2a3550, 1.8); outside.add(amb);
   const porch = new THREE.PointLight(0xffd8a0, 5, 14, 1.4); porch.position.set(.6, 2.6, .9); outside.add(porch);
+  G.outLights = [[sl, 34], [amb, 1.8], [porch, 5]]; G.lampHead = lampHead;
   B(.16, .22, .16, new THREE.MeshBasicMaterial({ color: 0xffe0b0 }), .6, 2.6, 1.6, outside);
   scene.fog = new THREE.FogExp2(0x0a0e16, .02); scene.background.setHex(0x06080d);
   P.x = 0; P.z = 0; P.yaw = 0; P.pitch = -.05; P.y = EYE; P.roll = 0;
@@ -2602,22 +2612,40 @@ function endWalk(dt) {
   G.walkT = (G.walkT || 0) + dt;
   // get close to the car (or dawdle long enough) and it comes for you
   if (Math.hypot(P.x - CAR.x, P.z - CAR.z) < 4.6 || G.walkT > 45) {
-    G.endPhase = 'jump'; G.jumpT = 0; creature.visible = true;
-    const dx = P.x - CAR.x, dz = P.z - CAR.z, d = Math.hypot(dx, dz) || 1;
-    G.jumpFrom = { x: CAR.x + dx / d * .4, z: CAR.z + dz / d * .4 };
-    sfx.carAlarm({ x: CAR.x, y: .8, z: CAR.z }); sfx.jawSnap({ x: CAR.x, y: 1.5, z: CAR.z }); sfx.scream(2.4);
+    G.endPhase = 'blackout'; G.boT = 0; outLights(0); sfx.powerDown();
+    if (AC) { const now = AC.currentTime; for (const g of [A.droneGain, A.windGain, A.musicGain]) g.gain.setTargetAtTime(0, now, .05); }
+  }
+}
+function outLights(k) { for (const [l, base] of G.outLights) l.intensity = base * k; G.lampHead.material.color.setHex(k > .5 ? 0xffd090 : 0x080808); }
+function endBlackout(dt) {
+  G.boT += dt;
+  // a moment of pitch dark and dead silence; then the lights stutter back on and it's right there
+  if (G.boT > 1.3 && G.boT < 1.42) outLights(.6);
+  else if (G.boT >= 1.42 && G.boT < 1.5) outLights(0);
+  else if (G.boT >= 1.5) {
+    outLights(1);
+    CR.x = P.x - Math.sin(P.yaw) * 2.3; CR.z = P.z - Math.cos(P.yaw) * 2.3; CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
+    creature.visible = true; G.endPhase = 'reveal'; G.revT = 0; sfx.heart(1.4);
+  }
+}
+function endReveal(dt) {
+  G.revT += dt; P.pitch += (.12 - P.pitch) * Math.min(1, dt * 4);
+  if (G.revT > .55) {
+    // only now does it make a sound
+    G.endPhase = 'jump'; G.jumpT = 0; G.jumpFrom = { x: CR.x, z: CR.z };
+    sfx.scream(2.6); sfx.jawSnap({ x: CR.x, y: 1.9, z: CR.z }); sfx.growl({ x: CR.x, y: 1.9, z: CR.z }, 1.6);
   }
 }
 function endJump(dt) {
   G.jumpT += dt;
-  // it vaults off the car roof and lands on you
-  const k = clamp(G.jumpT / .45, 0, 1), ek = k * k, to = { x: P.x - Math.sin(P.yaw) * 1.05, z: P.z - Math.cos(P.yaw) * 1.05 };
+  // it closes the gap in a fraction of a second, face first
+  const k = clamp(G.jumpT / .2, 0, 1), ek = k * k, to = { x: P.x - Math.sin(P.yaw) * 1.05, z: P.z - Math.cos(P.yaw) * 1.05 };
   CR.x = G.jumpFrom.x + (to.x - G.jumpFrom.x) * ek; CR.z = G.jumpFrom.z + (to.z - G.jumpFrom.z) * ek;
-  G.jumpY = (1 - k) * 1.1 + Math.sin(k * Math.PI) * .6 + (EYE - 2.3) * k;
+  G.jumpY = (EYE - 2.3) * ek;
   CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
   const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z)); P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 10); P.pitch += (-.06 - P.pitch) * Math.min(1, dt * 8);
   G.endStep = 5; G.lungeK = k;
-  if (G.jumpT > 1.05) {
+  if (G.jumpT > .95) {
     // smash cut to black and silence, then the morning plays out as before
     fade = 1; if (AC) A.master.gain.setValueAtTime(0, AC.currentTime); creature.visible = false;
     G.endPhase = 'timeline'; G.endT = ENDING[5] + .01; G.endStep = 6;
@@ -2627,6 +2655,8 @@ function updateEnding(dt) {
   const e = G.endT += dt, step = n => { if (G.endStep < n && e >= ENDING[n - 1]) { G.endStep = n; return true; } return false; };
   if (step(1)) { buildOutside(); sfx.doorOpen(null); G.endPhase = 'walk'; setTimeout(() => { if (G && G.endPhase === 'walk') say("Your car's out on the street. Get to it.", 3.5); }, 900); }
   if (G.endPhase === 'walk') { fade = Math.max(0, fade - dt / .9); endWalk(dt); return; }
+  if (G.endPhase === 'blackout') { fade = 0; endBlackout(dt); return; }
+  if (G.endPhase === 'reveal') { fade = 0; endReveal(dt); return; }
   if (G.endPhase === 'jump') { fade = 0; endJump(dt); return; }
   if (G.endStep >= 1 && G.endStep < 6) fade = Math.max(0, 1 - e / .9);
   if (step(2)) sfx.sniff({ x: 0, y: 2, z: -5.5 }, .9);
@@ -2649,7 +2679,8 @@ function updateEnding(dt) {
   }
   if (G.endStep >= 7 && G.endStep < 11) { fade = Math.max(0, 1 - (e - ENDING[6]) / 1.2); }
   if (G.endStep >= 7 && e < ENDING[8]) { P.roll = .5 + Math.sin(e * 9) * .03; P.yaw += Math.sin(e * 13) * .002; }
-  if (G.endStep >= 7 && !G.saidWake && e > ENDING[6] + .9) { G.saidWake = true; say('"Dude. Dude, wake up."', 2.2, true); babble('Dude. Dude, wake up.', friendVoice(), 135); }
+  if (G.endStep >= 7 && !G.saidWake && e > ENDING[6] + .9) { G.saidWake = true; say('"Dude. Dude, wake up."', 2.6, true); babble('Dude. Dude, wake up.', friendVoice(), 135); }
+  if (G.endStep >= 7 && !G.saidOut && e > ENDING[6] + 3.7) { G.saidOut = true; say('"You were proper out of it, man."', 2.4, true); babble('You were proper out of it man.', friendVoice(), 128); }
   if (step(8)) { say('"Come on, let\'s go."', 4, true); babble("Come on, let's go.", friendVoice(), 130); }
   if (friend && G.endStep >= 7) { const fu = friend.userData; fu.head.rotation.x = .25 + Math.sin(e * 1.3) * .05; fu.arms[1].sh.rotation.x = .2 + (G.endStep < 9 ? Math.max(0, Math.sin(e * 6)) * .5 : 0); }
   if (G.endStep >= 9 && G.endStep < 11) {
@@ -2669,7 +2700,7 @@ function updateEnding(dt) {
   if (step(11)) { fade = 1; if (AC) A.master.gain.setValueAtTime(0, AC.currentTime); }
   if (step(12)) showScore();
 }
-const ENDING = [0, 1.2, 1.8, 3.4, 3.85, 4.75, 6.5, 7.5, 9.8, 12.3, 13.1, 14.4];
+const ENDING = [0, 1.2, 1.8, 3.4, 3.85, 4.75, 6.5, 12.6, 14.6, 17.6, 18.4, 19.6];
 const friendVoice = () => friend ? { x: friend.position.x, y: 1.6, z: friend.position.z } : null;
 const VOWELS = [[730, 1090], [530, 1840], [270, 2290], [570, 840], [300, 870], [660, 1720]];
 function babble(text, where, base = 128) {
@@ -2752,7 +2783,7 @@ function render(dt) {
   const lampR = ending ? 0 : lampRadius();
   if (scare) { lamp.intensity = turnToIt ? 14 : 8; lamp.distance = turnToIt ? 12 : 5; }
   else { lamp.intensity = lampR > .2 ? 2.2 + lampR * 1.2 : 0; lamp.distance = Math.max(.1, lampR * 1.5); }
-  const jumpLit = state === 'ending' && G && G.endPhase === 'jump';
+  const jumpLit = state === 'ending' && G && (G.endPhase === 'jump' || G.endPhase === 'reveal');
   grabLight.intensity = scare ? (turnToIt ? 30 : 12) * (.85 + Math.random() * .3) : jumpLit ? 26 * (.85 + Math.random() * .3) : 0;
   if (jumpLit) grabLight.position.set(CR.x + (P.x - CR.x) * .4, 2.2, CR.z + (P.z - CR.z) * .4);
   if (scare) grabLight.position.set(CR.x + (P.x - CR.x) * .35, 2.0, CR.z + (P.z - CR.z) * .35);
@@ -2790,7 +2821,7 @@ function render(dt) {
   if (state === 'ending') {
     const lk = G.endStep === 5 ? G.lungeK : 0, close = lk > .95;
     animCreature(creature, CR.x + (close ? rnd(-.02, .02) : 0), CR.z, CR.yaw, lk > 0 && !close ? 1 : 0, false, G.endPhase === 'jump' ? G.jumpY : (EYE - 2.3) * lk);
-    setMouth(creature, Math.min(1, lk * (1 + Math.random() * .2)));
+    setMouth(creature, G.endPhase === 'reveal' ? .35 + Math.sin(t * 18) * .05 : Math.min(1, lk * (1 + Math.random() * .2)));
   }
   else if (scare && turnToIt) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false); setMouth(creature, .55); }
   else if (scare) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false, EYE - 2.3 + shy); setMouth(creature, .85 + Math.random() * .15); }
@@ -2904,13 +2935,14 @@ function tick(dt) {
   else if (state === 'waking') { G.wakeT += dt; fade = Math.max(0, 1 - G.wakeT / 1.6); if (G.wakeT >= 1.6) state = 'playing'; }
   else if (state === 'greenout') { L.goT += dt; if (L.goT > 3.6) die('green'); }
   else if (state === 'scare') { L.scT += dt; if (L.scT > 2.4) die('creature'); }
-  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 2.4 && G.mode === 'one') gameOver(); else if (L.dieT > 2.4) wakeUp(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
+  else if (state === 'dying') { L.dieT += dt; fade = Math.min(1, L.dieT / .8); if (L.dieT > 2.4 && G.mode === 'one') gameOver(); else if (L.dieT > 2.4) (scatterItems(), wakeUp)(pick(["You wake on the couch again. Still dark. Still 4 am.", "The couch. Again. Your pockets still have what you found.", "You jolt awake on the couch. It's 4 am. It's always 4 am."])); }
   else if (state === 'ending') updateEnding(dt);
   if (G && L) render(dt); else { renderer.setRenderTarget(null); renderer.clear(); }
 }
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get state() { return state; }, P, CR, NODES: () => NODES, startEnding: () => startEnding(), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
