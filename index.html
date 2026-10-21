@@ -77,6 +77,10 @@ body.touch .inv kbd{display:none}
 #hideView.tub{background:radial-gradient(ellipse 70% 55% at 50% 40%,transparent 45%,rgba(0,0,0,.92) 75%),linear-gradient(transparent 70%,#000 92%)}
 #toast{position:fixed;top:calc(env(safe-area-inset-top,0px) + 56px);left:50%;transform:translateX(-50%);padding:8px 16px;border-radius:999px;background:rgba(4,5,4,.85);border:1px solid rgba(134,227,109,.55);font-family:var(--f-hud);font-size:19px;letter-spacing:.1em;text-transform:uppercase;color:var(--leaf);pointer-events:none;opacity:0;transition:opacity .4s;white-space:nowrap}
 #toast.show{opacity:1}
+#torchWarn{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 70px);transform:translateX(-50%);padding:4px 12px;border-radius:999px;border:1px solid rgba(195,25,44,.6);background:rgba(4,5,4,.7);font-family:var(--f-hud);font-size:17px;letter-spacing:.12em;text-transform:uppercase;color:#ff8a8a;pointer-events:none;white-space:nowrap}
+#torchWarn.pulse{animation:twarn .9s ease-out 1}
+@keyframes twarn{0%{background:rgba(195,25,44,.65);color:#fff}100%{background:rgba(4,5,4,.7)}}
+body.touch #torchWarn{bottom:calc(env(safe-area-inset-bottom,0px) + 230px)}
 .ach{display:grid;grid-template-columns:repeat(auto-fill,minmax(14rem,1fr));gap:6px;margin:10px 0 0;padding:0;list-style:none}
 .ach li{display:grid;gap:1px;padding:7px 10px;border-radius:6px;border:1px solid rgba(207,213,200,.14);color:var(--smoke);font-size:.86rem;line-height:1.35}
 .ach li b{font-family:var(--f-hud);font-size:18px;font-weight:400;letter-spacing:.08em;text-transform:uppercase}
@@ -220,6 +224,7 @@ body.touch .desk-only{display:none}
   <button class="inv" id="invPhone" type="button" aria-label="Phone torch" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="2" width="12" height="20" rx="2" fill="#1a1c20" stroke="#8fb4ff" stroke-width="1.2"/><rect x="8" y="5" width="8" height="12" fill="#8fb4ff" opacity=".55"/></svg><b id="battery">100%</b><kbd>T</kbd></button>
 </div>
 <div id="toast" role="status"></div>
+<div id="torchWarn" hidden>Torch on · it can hear the phone</div>
 <div id="msg" role="status" aria-live="polite"></div>
 <div id="note" hidden></div>
 <div id="whisper" aria-hidden="true"></div>
@@ -1431,18 +1436,23 @@ const PEN_REST = new THREE.Vector3(.15, -.16, -.3), PEN_HIT = new THREE.Vector3(
 let penLift = 0;
 
 /* ================= audio ================= */
-let AC = null, A = {};
+let AC = null, A = {}; const A0 = {};
 function initAudio() {
   if (AC) { AC.resume(); return; }
   try { AC = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { AC = null; return; }
   const master = AC.createGain(); master.gain.value = .9 * SET.vol;
   const limiter = AC.createDynamicsCompressor(); limiter.threshold.value = -10; limiter.ratio.value = 12; limiter.connect(AC.destination); master.connect(limiter);
+  // a generated room impulse: dense early reflections that die away over ~2 s
+  const irLen = AC.sampleRate * 2.2 | 0, ir = AC.createBuffer(2, irLen, AC.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 3.2) * (i < 220 ? i / 220 : 1); }
+  const conv = AC.createConvolver(); conv.buffer = ir; const rv = AC.createGain(); rv.gain.value = .22;
+  master.connect(conv); conv.connect(rv); rv.connect(limiter); A0.reverb = rv;
   const delay = AC.createDelay(1), fb = AC.createGain(), wet = AC.createGain();
   delay.delayTime.value = .31; fb.gain.value = 0; wet.gain.value = 0;
   master.connect(delay); delay.connect(fb); fb.connect(delay); delay.connect(wet); wet.connect(AC.destination);
   const nb = AC.createBuffer(1, AC.sampleRate * 2, AC.sampleRate), d = nb.getChannelData(0);
   for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
-  A = { master, fb, wet, nb };
+  A = { master, fb, wet, nb, reverb: A0.reverb };
   const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 220;
   const dg = AC.createGain(); dg.gain.value = .045; lp.connect(dg); dg.connect(master); A.droneGain = dg;
   A.dr = [55, 55.6, 82.4].map(f => { const o = AC.createOscillator(); o.type = 'sawtooth'; o.frequency.value = f; o.connect(lp); o.start(); return o; });
@@ -1460,6 +1470,9 @@ function initAudio() {
   // your own breathing
   const pbp = AC.createBiquadFilter(); pbp.type = 'bandpass'; pbp.frequency.value = 900; pbp.Q.value = .9;
   const pg = AC.createGain(); pg.gain.value = 0; loopNoise().connect(pbp); pbp.connect(pg); pg.connect(master); A.pGain = pg;
+  // the torch's electronic whine
+  const th = AC.createOscillator(); th.frequency.value = 2960; const th2 = AC.createOscillator(); th2.type = 'square'; th2.frequency.value = 60;
+  const thg = AC.createGain(); thg.gain.value = 0; th.connect(thg); th2.connect(thg); thg.connect(master); th.start(); th2.start(); A.torchHum = thg;
   // party music somewhere through the walls: low-passed hard and placed outside the room
   const mlp = AC.createBiquadFilter(); mlp.type = 'lowpass'; mlp.frequency.value = 150; mlp.Q.value = 3;
   const mg = AC.createGain(); mg.gain.value = 0; A.musicIn = mlp; A.musicGain = mg; A.musicPan = newPanner(); A.musicPan.refDistance = 4; A.musicPan.rolloffFactor = .6;
@@ -1477,6 +1490,19 @@ function out(node, where) {
   p.connect(A.master);
 }
 const vol = (where, g) => g * (where && where.v != null ? where.v : 1);
+// a creaking hinge: a buzzy tone whose pitch wanders, through a resonant filter, with friction noise
+function creak(where, base, dur, g, at = 0) {
+  if (!AC) return;
+  const t0 = AC.currentTime + at, o = AC.createOscillator(); o.type = 'sawtooth';
+  const n = 24, curve = new Float32Array(n); let f = base; for (let i = 0; i < n; i++) { f = clamp(f * (1 + (Math.random() - .45) * .12), base * .6, base * 1.8); curve[i] = f; }
+  o.frequency.setValueCurveAtTime(curve, t0, dur);
+  const bp = AC.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = base * 3.2; bp.Q.value = 7;
+  const gn = AC.createGain(); gn.gain.setValueAtTime(.0001, t0); gn.gain.exponentialRampToValueAtTime(vol(where, g), t0 + .06); gn.gain.setValueAtTime(vol(where, g) * .8, t0 + dur * .7); gn.gain.exponentialRampToValueAtTime(.0001, t0 + dur);
+  o.connect(bp); bp.connect(gn); out(gn, where); o.start(t0); o.stop(t0 + dur + .05);
+  burst({ type: 'bandpass', f: base * 6, q: 3, dur, g: g * .35, at, attack: .05, where });
+}
+// a struck bar: fundamental plus a fast-dying overtone
+function marimba(f, at, where, g = .12) { tone({ f, dur: .45, g, at, attack: .003, where }); tone({ f: f * 4, dur: .12, g: g * .35, at, attack: .002, where }); tone({ f: f * 10, dur: .04, g: g * .15, at, attack: .001, where }); }
 function burst({ dur = .3, type = 'bandpass', f = 1000, f2 = 0, q = 1, g = .3, at = 0, attack = .01, where = null }) {
   if (!AC) return;
   const t0 = AC.currentTime + at, s = AC.createBufferSource(); s.buffer = A.nb; s.loop = true;
@@ -1492,8 +1518,8 @@ function tone({ f = 440, f2 = 0, dur = .3, type = 'sine', g = .2, at = 0, attack
 }
 const sfx = {
   heart(v) { tone({ f: 72, f2: 38, dur: .18, g: .5 * v }); tone({ f: 64, f2: 36, dur: .16, g: .32 * v, at: .17 }); },
-  myStep(v) { burst({ type: 'lowpass', f: 260, dur: .1, g: v }); },
-  step(where, v) { burst({ type: 'lowpass', f: 320, dur: .14, g: v, where }); tone({ f: 52, f2: 38, dur: .12, g: v * .7, where }); },
+  myStep(v) { tone({ f: 85, f2: 50, dur: .08, g: v * .8 }); burst({ type: 'bandpass', f: rnd(700, 1100), q: 1.2, dur: .07, g: v * .5, at: .02 }); },
+  step(where, v) { burst({ type: 'lowpass', f: 320, dur: .14, g: v, where }); tone({ f: 52, f2: 38, dur: .12, g: v * .7, where }); burst({ type: 'highpass', f: 3000, dur: .02, g: v * .25, at: .03, where }); },
   creak(where, v = .12) { const f = rnd(180, 320); tone({ f, f2: f * .7, dur: rnd(.6, 1.2), type: 'sawtooth', g: v * .35, attack: .1, where }); burst({ f: f * 2, q: 8, dur: .9, g: v * .4, attack: .2, where }); },
   sniff(where, v = .3) { for (let i = 0; i < 4; i++) burst({ f: rnd(1800, 2600), q: 2.5, dur: .12, g: v, at: i * .16, attack: .03, where }); },
   growl(where, v = .25) { tone({ f: 70, f2: 50, dur: 1.2, type: 'sawtooth', g: v * .5, attack: .2, where }); burst({ type: 'lowpass', f: 400, dur: 1.1, g: v * .6, attack: .3, where }); },
@@ -1506,13 +1532,17 @@ const sfx = {
   vanish() { burst({ type: 'highpass', f: 1500, dur: .35, g: .18 }); },
   scream(v = 1) { for (let i = 0; i < 5; i++) { const f = rnd(380, 1100); tone({ f, f2: f * .55, dur: 1.3, type: 'sawtooth', g: .14 * v }); } burst({ type: 'highpass', f: 900, dur: 1.2, g: .5 * v }); tone({ f: 60, f2: 30, dur: 1, g: .6 * v }); },
   rattle(where) { for (let i = 0; i < 5; i++) { burst({ type: 'bandpass', f: 900, q: 3, dur: .06, g: .25, at: i * .08, where }); tone({ f: 120, dur: .06, type: 'square', g: .06, at: i * .08, where }); } },
-  doorBang(where) { burst({ type: 'lowpass', f: 900, dur: .35, g: .6, where }); tone({ f: 85, f2: 45, dur: .3, g: .45, where }); burst({ f: 2400, q: 6, dur: .25, g: .12, where }); },
-  doorCreakLoud(where) { const f = rnd(240, 340); tone({ f, f2: f * 1.8, dur: .9, type: 'sawtooth', g: .09, attack: .08, where }); burst({ f: f * 3, q: 14, dur: .85, g: .2, attack: .1, where }); },
-  doorOpen(where) { const f = rnd(300, 420); tone({ f, f2: f * 1.4, dur: .5, type: 'sawtooth', g: .04, attack: .05, where }); burst({ f: f * 3, q: 10, dur: .45, g: .08, attack: .05, where }); },
-  doorClose(where, slam) { burst({ type: 'lowpass', f: slam ? 700 : 300, dur: slam ? .5 : .25, g: slam ? .7 : .22, where }); tone({ f: slam ? 70 : 90, f2: 40, dur: slam ? .4 : .2, g: slam ? .6 : .2, where }); },
+  doorBang(where) { burst({ type: 'highpass', f: 2500, dur: .03, g: .35, where }); burst({ type: 'lowpass', f: 900, dur: .4, g: .7, where }); tone({ f: 95, f2: 48, dur: .35, g: .55, where }); tone({ f: 190, f2: 120, dur: .18, type: 'triangle', g: .2, where }); creak(where, rnd(260, 340), .35, .1, .05); for (let i = 0; i < 4; i++) burst({ f: rnd(1800, 2600), q: 9, dur: .05, g: .08, at: .12 + i * .06, where }); },
+  doorCreakLoud(where) { burst({ type: 'highpass', f: 3200, dur: .03, g: .2, where }); tone({ f: 1100, f2: 700, dur: .04, type: 'square', g: .05, where }); creak(where, rnd(220, 300), rnd(1.1, 1.5), .16, .08); },
+  doorOpen(where) { burst({ type: 'highpass', f: 3200, dur: .03, g: .16, where }); tone({ f: 1100, f2: 700, dur: .04, type: 'square', g: .04, where }); creak(where, rnd(320, 460), rnd(.55, .8), .07, .07); },
+  doorClose(where, slam) { if (!slam) creak(where, rnd(300, 420), .35, .05); const at = slam ? 0 : .3; burst({ type: 'lowpass', f: slam ? 900 : 380, dur: slam ? .55 : .25, g: slam ? .8 : .25, at, where }); tone({ f: slam ? 85 : 110, f2: 45, dur: slam ? .45 : .2, g: slam ? .7 : .22, at, where }); tone({ f: slam ? 210 : 260, f2: 150, dur: .12, type: 'triangle', g: slam ? .25 : .08, at, where }); burst({ type: 'highpass', f: 3500, dur: .03, g: slam ? .3 : .14, at: at + .01, where }); if (slam) for (let i = 0; i < 5; i++) burst({ f: rnd(1600, 2800), q: 9, dur: .05, g: .1, at: .1 + i * .07, where }); },
   drip(where) { tone({ f: rnd(1300, 1900), f2: rnd(700, 900), dur: .09, g: .06, where }); },
   thud(where, v = .25) { burst({ type: 'lowpass', f: 220, dur: .4, g: v, where }); tone({ f: 48, f2: 32, dur: .4, g: v, where }); },
-  ring(where) { for (let k = 0; k < 3; k++) for (let i = 0; i < 6; i++) tone({ f: i % 2 ? 1320 : 1760, dur: .07, type: 'square', g: .045, at: k * 1.3 + i * .08, where }); },
+  ring(where) { const n = [0, 7, 12, 16, 12, 7, 4, 7], b = 659; for (let k = 0; k < 3; k++) n.forEach((st, i) => marimba(b * Math.pow(2, st / 12), k * 1.6 + i * .13, where, .1)); for (let k = 0; k < 3; k++) sfx.vibrate(where, k * 1.6 + 1.1); },
+  vibrate(where, at = 0) { for (let i = 0; i < 2; i++) { tone({ f: 148, dur: .32, type: 'square', g: .035, at: at + i * .42, attack: .01, where }); tone({ f: 151, dur: .32, type: 'square', g: .035, at: at + i * .42, attack: .01, where }); burst({ f: 900, q: 4, dur: .32, g: .05, at: at + i * .42, attack: .01, where }); } },
+  jingle(where) { for (let i = 0; i < 7; i++) tone({ f: rnd(3200, 6200), dur: rnd(.08, .2), type: 'triangle', g: .05, at: i * rnd(.03, .07), attack: .002, where }); },
+  carAlarm(where) { for (let i = 0; i < 10; i++) tone({ f: i % 2 ? 1250 : 950, dur: .14, type: 'square', g: .06, at: i * .15, attack: .005, where }); },
+  hum() {},
   gasp() { burst({ f: 1400, f2: 600, q: 1.2, dur: .7, g: .45, attack: .02 }); },
   beep(v) { tone({ f: 1480, dur: .06, g: .035 + v * .012 }); },
   crClick(where) { const n = 3 + (Math.random() * 4 | 0); for (let i = 0; i < n; i++) burst({ type: 'highpass', f: rnd(2500, 4500), q: 3, dur: .03, g: .35, at: i * rnd(.06, .1), where }); },
@@ -1531,7 +1561,7 @@ const sfx = {
   whoosh() { burst({ type: 'bandpass', f: 600, f2: 2400, q: 1.5, dur: .3, g: .12, attack: .05 }); },
   smash(where) { for (let i = 0; i < 6; i++) tone({ f: rnd(2500, 6000), dur: rnd(.05, .25), type: 'triangle', g: .14, at: i * .03, where }); burst({ type: 'highpass', f: 2500, dur: .5, g: .55, where }); burst({ type: 'lowpass', f: 400, dur: .15, g: .4, where }); },
   click() { tone({ f: 2400, dur: .02, type: 'square', g: .03 }); },
-  buzz() { for (let i = 0; i < 3; i++) tone({ f: 165, dur: .28, type: 'square', g: .07, at: i * .45, attack: .01 }); },
+  buzz() { sfx.vibrate(null, 0); sfx.vibrate(null, .9); marimba(1318, .05, null, .05); },
   shiftSting() { tone({ f: 330, f2: 60, dur: 1.4, type: 'sawtooth', g: .07, attack: .3 }); burst({ f: 3000, f2: 200, q: 4, dur: 1.2, g: .08, attack: .4 }); },
   powerOn() { tone({ f: 60, dur: .6, type: 'square', g: .12 }); tone({ f: 120, dur: .6, type: 'sawtooth', g: .05 }); burst({ type: 'highpass', f: 4000, dur: .06, g: .3 }); burst({ type: 'highpass', f: 4000, dur: .06, g: .3, at: .15 }); },
   gaspSoft() { burst({ f: 1200, f2: 500, q: 1.2, dur: .5, g: .2, attack: .02 }); },
@@ -1555,7 +1585,7 @@ document.addEventListener('pointerlockchange', () => { locked = document.pointer
 addEventListener('keydown', e => {
   if (e.target instanceof HTMLInputElement) return;
   const k = e.key.toLowerCase();
-  if (state === 'playing' && (k === ' ' || k.startsWith('arrow'))) e.preventDefault();
+  if ((state === 'playing' || walkingOut()) && (k === ' ' || k.startsWith('arrow'))) e.preventDefault();
   if (keyMap[k]) input[keyMap[k]] = 1;
   if (k === 'r') input.run = true;
   if (k === 'e' && state === 'playing' && !e.repeat) input.use = true;
@@ -1588,12 +1618,12 @@ cvs.addEventListener('mousedown', e => {
 });
 addEventListener('mouseup', e => { if (e.button === 2) { input.penMouse = false; releaseCheck(); } });
 addEventListener('mousemove', e => {
-  if (state !== 'playing' || isTouch) return;
+  if (!(state === 'playing' || walkingOut()) || isTouch) return;
   const k = .0022 * SET.sens * (L && L.invertT > 0 ? -1 : 1);
   P.yaw -= e.movementX * k; P.pitch = clamp(P.pitch - e.movementY * k, -1.3, 1.3);
 });
 let lookId = null, lookX = 0, lookY = 0;
-cvs.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch' || state !== 'playing') return; lookId = e.pointerId; lookX = e.clientX; lookY = e.clientY; });
+cvs.addEventListener('pointerdown', e => { if (e.pointerType !== 'touch' || !(state === 'playing' || walkingOut())) return; lookId = e.pointerId; lookX = e.clientX; lookY = e.clientY; });
 cvs.addEventListener('pointermove', e => {
   if (e.pointerId !== lookId) return;
   const k = .006 * SET.sens * (L && L.invertT > 0 ? -1 : 1);
@@ -1792,6 +1822,7 @@ function enterRoom(id, from, slam) {
   const shift = L.shift; L.shift = null;
   buildRoom(id, false, !!shift);
   setMusicSpot();
+  if (AC && A.reverb) A.reverb.gain.setTargetAtTime(.12 + Math.min(.28, cur.w * cur.d / 260), AC.currentTime, .3);
   const node = NODES[id];
   node.enteredHigh = L.high >= 60; node.entryFrom = from;
   let dr = from ? cur.doors.find(d => d.to === from) : null;
@@ -1997,7 +2028,9 @@ function setTorch(on) {
   if (on && G.battery <= 0) { say("Your phone's dead.", 1.8); return; }
   if (on && L && L.hidden) return;
   if (G.torch !== on) sfx.click();
-  G.torch = on;
+  if (on && !G.torch && !G.toldTorch) { G.toldTorch = true; say('"The phone whines with the torch on. It can hear that."', 3, true); }
+  G.torch = on; torchWarnEl.hidden = !on; G.torchPing = 1;
+  if (AC && A.torchHum) A.torchHum.gain.setTargetAtTime(on ? .006 * SET.vol : 0, AC.currentTime, .05);
 }
 const TEXTS = ['Unknown number: i can hear you', 'Unknown number: why did you turn the lights off', 'Mia: where are you??', 'Unknown number: dont go upstairs', 'Unknown number: its right behind the', 'Sam: did you get out'];
 function phoneBuzz() {
@@ -2050,7 +2083,7 @@ const ACH = [
   ['hideseek', 'Hide and seek', 'Stay hidden while it searches within three metres of you.']
 ];
 let ACHS = {}; try { ACHS = JSON.parse(localStorage.getItem('lasthit.ach')) || {}; } catch (e) {}
-const toastEl = $('toast'); let toastT = 0;
+const toastEl = $('toast'), torchWarnEl = $('torchWarn'); let toastT = 0;
 function unlock(id) {
   if (ACHS[id]) return;
   ACHS[id] = Date.now(); try { localStorage.setItem('lasthit.ach', JSON.stringify(ACHS)); } catch (e) {}
@@ -2140,7 +2173,7 @@ function update(dt) {
   const held = penHeld();
   if (held && !L.coughLock && !L.holding && !L.hidden) {
     if (!L.inhaling) { L.inhaling = true; L.pull = 0; }
-    L.pull += dt; L.high += dt * 8;
+    L.pull += dt; L.high += dt * 11;
     if (Math.random() < dt * 14) sfx.crackle();
     if (L.pull > 3.2) exhale(true);
   } else if (L.inhaling) exhale(false);
@@ -2319,7 +2352,12 @@ function updateWorld(dt) {
   if (L.high > 65 && Math.random() < dt * .06) whisperText();
   // your phone, once found, buzzes now and then and lights up
   if (G.items.phone) { G.buzzT -= dt; if (G.buzzT <= 0) { G.buzzT = rnd(35, 70); phoneBuzz(); } }
-  if (G.torch) { G.battery = Math.max(0, G.battery - dt / 60); if (G.battery <= 0) { setTorch(false); say("Your phone's dead.", 2.4); } }
+  if (G.torch) {
+    G.battery = Math.max(0, G.battery - dt / 60); if (G.battery <= 0) { setTorch(false); say("Your phone's dead.", 2.4); }
+    // the phone whines while the torch is on, and it can hear it
+    G.torchPing = (G.torchPing ?? 2) - dt;
+    if (G.torchPing <= 0) { G.torchPing = 2.5; noise(P.x, P.z, 8, 1); torchWarnEl.classList.remove('pulse'); void torchWarnEl.offsetWidth; torchWarnEl.classList.add('pulse'); }
+  }
   if (L.flash > 0) L.flash = Math.max(0, L.flash - dt);
   // one scripted scare per run: the power flickers on and it's standing right there
   if (!G.scareDone && G.time > G.scareAt && cur.id !== 'living' && !L.hidden && CR.room !== cur.id) powerFlicker();
@@ -2512,9 +2550,9 @@ let outside = null, friend = null;
 function startEnding() {
   promptEl.hidden = true, promptEl.textContent = '';
   clearGame(); G.escapeHigh = L.high; if (L.hidden) leaveHide(true); setTorch(false);
-  state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time;
+  state = 'ending'; G.endT = 0; G.endStep = 0; G.endTime = G.time; G.endPhase = null; G.walkT = 0;
   $('inv').hidden = true;
-  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; roomEl.classList.remove('show'); msgEl.classList.remove('show');
+  hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; roomEl.classList.remove('show'); msgEl.classList.remove('show'); torchWarnEl.hidden = true;
   L.high = 0; L.dizzy = 0; L.stat = 0; L.light = 0; L.inhaling = false;
   if (A.crGain) A.crGain.gain.value = 0;
   fade = 1;
@@ -2535,11 +2573,52 @@ function buildOutside() {
   B(.16, .22, .16, new THREE.MeshBasicMaterial({ color: 0xffe0b0 }), .6, 2.6, 1.6, outside);
   scene.fog = new THREE.FogExp2(0x0a0e16, .02); scene.background.setHex(0x06080d);
   P.x = 0; P.z = 0; P.yaw = 0; P.pitch = -.05; P.y = EYE; P.roll = 0;
-  CR.x = 0; CR.z = -5.5; CR.yaw = Math.PI; creature.visible = true; G.lungeK = 0;
+  // your car, parked on the street at the end of the path
+  B(36, .02, 4.2, new THREE.MeshStandardMaterial({ color: 0x1a1a1c, roughness: .9 }), 0, .012, -13.6, outside);
+  for (let x = -16; x <= 16; x += 3) B(1.2, .021, .12, MAT.white, x, .013, -13.6, outside);
+  const car = F.car(); car.position.set(CAR.x, 0, CAR.z); outside.add(car);
+  B(.06, .06, .02, new THREE.MeshBasicMaterial({ color: 0x3a0505 }), CAR.x - 2, .75, CAR.z - .7, outside);
+  CR.x = CAR.x; CR.z = CAR.z - 1.6; CR.yaw = 0; creature.visible = false; G.lungeK = 0;
+}
+const CAR = { x: 2.6, z: -13.1 };
+const walkingOut = () => state === 'ending' && G && G.endPhase === 'walk';
+function endWalk(dt) {
+  let f = (input.fwd - input.back) - input.ty - (input.gy || 0) + (input.auto ? 1 : 0), s = (input.right - input.left) + input.tx + (input.gx || 0);
+  P.yaw -= (input.turnR - input.turnL) * 2.2 * dt; P.pitch = clamp(P.pitch + ((input.lookU || 0) - (input.lookD || 0)) * 1.6 * dt, -1.2, 1.2);
+  const l = Math.hypot(f, s); if (l > 1) { f /= l; s /= l; }
+  const sp = runHeld() ? 4.3 : 2.3, sy = Math.sin(P.yaw), cy = Math.cos(P.yaw), ox = P.x, oz = P.z;
+  P.x = clamp(P.x + (-sy * f + cy * s) * sp * dt, -8, 10); P.z = clamp(P.z + (-cy * f - sy * s) * sp * dt, -12.1, 1.4);
+  const mv = Math.hypot(P.x - ox, P.z - oz); P.bob += mv * 3.4; G.walkStep = (G.walkStep || 0) + mv;
+  if (G.walkStep > .75) { G.walkStep = 0; burst({ type: 'bandpass', f: rnd(1500, 2600), q: .8, dur: .12, g: .1 }); tone({ f: 70, f2: 45, dur: .08, g: .1 }); }
+  G.walkT = (G.walkT || 0) + dt;
+  // get close to the car (or dawdle long enough) and it comes for you
+  if (Math.hypot(P.x - CAR.x, P.z - CAR.z) < 4.6 || G.walkT > 45) {
+    G.endPhase = 'jump'; G.jumpT = 0; creature.visible = true;
+    const dx = P.x - CAR.x, dz = P.z - CAR.z, d = Math.hypot(dx, dz) || 1;
+    G.jumpFrom = { x: CAR.x + dx / d * .4, z: CAR.z + dz / d * .4 };
+    sfx.carAlarm({ x: CAR.x, y: .8, z: CAR.z }); sfx.jawSnap({ x: CAR.x, y: 1.5, z: CAR.z }); sfx.scream(2.4);
+  }
+}
+function endJump(dt) {
+  G.jumpT += dt;
+  // it vaults off the car roof and lands on you
+  const k = clamp(G.jumpT / .45, 0, 1), ek = k * k, to = { x: P.x - Math.sin(P.yaw) * 1.05, z: P.z - Math.cos(P.yaw) * 1.05 };
+  CR.x = G.jumpFrom.x + (to.x - G.jumpFrom.x) * ek; CR.z = G.jumpFrom.z + (to.z - G.jumpFrom.z) * ek;
+  G.jumpY = (1 - k) * 1.1 + Math.sin(k * Math.PI) * .6 + (EYE - 2.3) * k;
+  CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
+  const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z)); P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 10); P.pitch += (.1 - P.pitch) * Math.min(1, dt * 8);
+  G.endStep = 5; G.lungeK = k;
+  if (G.jumpT > 1.05) {
+    // smash cut to black and silence, then the morning plays out as before
+    fade = 1; if (AC) A.master.gain.setValueAtTime(0, AC.currentTime); creature.visible = false;
+    G.endPhase = 'timeline'; G.endT = ENDING[5] + .01; G.endStep = 6;
+  }
 }
 function updateEnding(dt) {
   const e = G.endT += dt, step = n => { if (G.endStep < n && e >= ENDING[n - 1]) { G.endStep = n; return true; } return false; };
-  if (step(1)) { buildOutside(); sfx.doorOpen(null); }
+  if (step(1)) { buildOutside(); sfx.doorOpen(null); G.endPhase = 'walk'; setTimeout(() => { if (G && G.endPhase === 'walk') say("Your car's out on the street. Get to it.", 3.5); }, 900); }
+  if (G.endPhase === 'walk') { fade = Math.max(0, fade - dt / .9); endWalk(dt); return; }
+  if (G.endPhase === 'jump') { fade = 0; endJump(dt); return; }
   if (G.endStep >= 1 && G.endStep < 6) fade = Math.max(0, 1 - e / .9);
   if (step(2)) sfx.sniff({ x: 0, y: 2, z: -5.5 }, .9);
   if (step(3)) sfx.sniff({ x: 0, y: 2, z: -5.5 }, 1);
@@ -2561,7 +2640,8 @@ function updateEnding(dt) {
   }
   if (G.endStep >= 7 && G.endStep < 11) { fade = Math.max(0, 1 - (e - ENDING[6]) / 1.2); }
   if (G.endStep >= 7 && e < ENDING[8]) { P.roll = .5 + Math.sin(e * 9) * .03; P.yaw += Math.sin(e * 13) * .002; }
-  if (step(8)) say('"Come on, let\'s go."', 4, true);
+  if (G.endStep >= 7 && !G.saidWake && e > ENDING[6] + .9) { G.saidWake = true; say('"Dude. Dude, wake up."', 2.2, true); speak('Dude. Dude, wake up.', 1.05, .85); }
+  if (step(8)) { say('"Come on, let\'s go."', 4, true); speak("Come on, let's go.", 1, .85); }
   if (friend && G.endStep >= 7) { const fu = friend.userData; fu.head.rotation.x = .25 + Math.sin(e * 1.3) * .05; fu.arms[1].sh.rotation.x = .2 + (G.endStep < 9 ? Math.max(0, Math.sin(e * 6)) * .5 : 0); }
   if (G.endStep >= 9 && G.endStep < 11) {
     const k = ease(clamp((e - ENDING[8]) / 1.5, 0, 1)), m = G.morning;
@@ -2569,6 +2649,8 @@ function updateEnding(dt) {
     const fk = clamp((e - ENDING[8] - .6) / 2.5, 0, 1);
     const sx = m.c.cx + m.c.nx * 1.15, sz = m.c.cz + m.c.nz * 1.15, dx = m.door.x + m.door.nx * .5, dz = m.door.z + m.door.nz * .5;
     friend.position.set(sx + (dx - sx) * fk, Math.abs(Math.sin(e * 6)) * .03 * (fk > 0 && fk < 1), sz + (dz - sz) * fk);
+    if (fk > 0 && !G.jingled) { G.jingled = true; sfx.jingle({ x: friend.position.x, y: 1, z: friend.position.z }); }
+    if (fk > 0 && fk < 1) { G.fStep = (G.fStep || 0) - dt; if (G.fStep <= 0) { G.fStep = .45; sfx.step({ x: friend.position.x, y: .1, z: friend.position.z }, .35); } }
     if (fk > 0) friend.rotation.y = Math.atan2(dx - sx, dz - sz);
     const want = Math.atan2(-(friend.position.x - P.x), -(friend.position.z - P.z));
     P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 2.5);
@@ -2579,6 +2661,15 @@ function updateEnding(dt) {
   if (step(12)) showScore();
 }
 const ENDING = [0, 1.2, 1.8, 3.4, 3.85, 4.75, 6.5, 7.5, 9.8, 12.3, 13.1, 14.4];
+function speak(text, rate = 1, pitch = .9) {
+  try {
+    if (!('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text); u.rate = rate; u.pitch = pitch; u.volume = SET.vol;
+    const vs = speechSynthesis.getVoices(), v = vs.find(x => /^en/i.test(x.lang) && /male|daniel|david|alex|guy|fred|george/i.test(x.name)) || vs.find(x => /^en/i.test(x.lang));
+    if (v) u.voice = v;
+    speechSynthesis.cancel(); speechSynthesis.speak(u);
+  } catch (e) {}
+}
 function showScore() {
   state = 'score';
   if (document.pointerLockElement) document.exitPointerLock();
@@ -2642,7 +2733,11 @@ function render(dt) {
   if (scare) grabLight.position.set(CR.x + (P.x - CR.x) * .35, 2.0, CR.z + (P.z - CR.z) * .35);
   figMat.emissive.setHex(scare ? 0x4a0606 : 0x0b0b0b);
   ledLight.intensity = !ending && L.inhaling ? 1.4 + Math.random() * .3 : 0;
-  torch.intensity = !ending && G && G.torch ? 9 * (.85 + Math.random() * .05) * (G.battery < .15 ? (Math.random() < .2 ? .2 : 1) : 1) : 0;
+  if (!ending && G && G.torch) {
+    // cheap phone torch: it stutters, more as the battery goes
+    G.flk = (G.flk || 0) - dt; if (G.flk <= 0) { G.flk = rnd(.04, .25); G.flkV = Math.random() < (G.battery < .25 ? .35 : .14) ? rnd(.05, .45) : rnd(.8, 1); }
+    torch.intensity = 9 * G.flkV;
+  } else torch.intensity = 0;
   flashLight.intensity = !ending && L.flash > 0 ? 4 * L.flash : 0;
   if (cur) for (const lt of cur.lights) {
     let k = 1;
@@ -2669,7 +2764,7 @@ function render(dt) {
   // creature
   if (state === 'ending') {
     const lk = G.endStep === 5 ? G.lungeK : 0, close = lk > .95;
-    animCreature(creature, CR.x + (close ? rnd(-.02, .02) : 0), CR.z, CR.yaw, lk > 0 && !close ? 1 : 0, G.endStep >= 2 && G.endStep < 4, (EYE - 2.3) * lk);
+    animCreature(creature, CR.x + (close ? rnd(-.02, .02) : 0), CR.z, CR.yaw, lk > 0 && !close ? 1 : 0, false, G.endPhase === 'jump' ? G.jumpY : (EYE - 2.3) * lk);
     setMouth(creature, Math.min(1, lk * (1 + Math.random() * .2)));
   }
   else if (scare && turnToIt) { creature.visible = true; animCreature(creature, CR.x, CR.z, Math.atan2(P.x - CR.x, P.z - CR.z), 0, false); setMouth(creature, .55); }
@@ -2753,6 +2848,7 @@ function pollPad(dt) {
   const pen = b(7), br = b(6);
   if (input.penPad && !pen) { input.penPad = false; releaseCheck(); } else input.penPad = pen;
   input.brPad = br;
+  if (walkingOut()) { const rx = ax(2), ry = ax(3); P.yaw -= rx * Math.abs(rx) * 2.8 * SET.sens * dt; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2 * SET.sens * dt, -1.2, 1.2); }
   if (state === 'playing') {
     const inv = L && L.invertT > 0 ? -1 : 1, rx = ax(2), ry = ax(3);
     P.yaw -= rx * Math.abs(rx) * 2.8 * SET.sens * dt * inv; P.pitch = clamp(P.pitch - ry * Math.abs(ry) * 2.0 * SET.sens * dt * inv, -1.3, 1.3);
@@ -2790,6 +2886,7 @@ function tick(dt) {
 requestAnimationFrame(frame);
 ready = true;
 offerContinue();
+if (location.hash === '#debug') window.__hp = { get G() { return G; }, get L() { return L; }, get cur() { return cur; }, get state() { return state; }, P, CR, enterRoom, startEnding: () => startEnding(), run: (sec, dt = 1 / 30) => { for (let i = 0; i < sec / dt; i++) tick(dt); } }; // TEMP-DEBUG
 const sb = $('startBtn'); sb.disabled = false; sb.lastChild.textContent = 'Wake up'; $('hardBtn').disabled = false;
 </script>
 </body>
