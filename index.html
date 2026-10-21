@@ -2428,7 +2428,7 @@ function updateCreature(dt) {
     case 'track':
       speed = CR.chase ? runSpeed() * .88 : 1.6 + Object.values(G.items).filter(Boolean).length * .15;
       if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5 && CR.hideHunt && L.hidden && L.hidden.heard) { CR.hideHunt = false; sfx.doorBang({ x: CR.x, y: 1.2, z: CR.z }); caught(); return; }
-      if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < .5) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.chase = false; CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
+      if (Math.hypot(CR.tx - CR.x, CR.tz - CR.z) < (L.holding ? 1.1 : .5)) { if (CR.cloud) { CR.cloud.s *= .25; CR.cloud = null; } CR.chase = false; CR.state = 'sniff'; CR.sniffT = rnd(1.6, 2.4); }
       break;
     case 'windup':
       CR.windT -= dt; CR.yaw = Math.atan2(P.x - CR.x, P.z - CR.z);
@@ -2469,7 +2469,7 @@ function updateCreature(dt) {
   if (mv > .0001 && Math.random() < dt * .6) sfx.scrape({ x: CR.x, y: .3, z: CR.z });
   CR.stepAcc += mv;
   if (CR.stepAcc > .85) { CR.stepAcc = 0; sfx.step({ x: CR.x, y: .1, z: CR.z }, CR.state === 'track' || CR.state === 'lunge' ? .9 : .6); if (d < 6 && Math.random() < .4) sfx.creak({ x: CR.x, y: .1, z: CR.z }, .2); }
-  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && !L.hidden.heard) && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
+  if (CR.grace <= 0 && !CR.visiting && !(L.hidden && !L.hidden.heard) && !(L.holding && CR.state !== 'lunge') && Math.hypot(P.x - CR.x, P.z - CR.z) < .7) { caught(); return; }
   if (L.hidden && d < 3) unlock('hideseek');
   L.near = clamp(1 - d / 7, 0, 1);
   if (A.crGain) { setPos(A.crPan, CR.x, 2.0, CR.z); A.crLp.frequency.setTargetAtTime(4000, AC.currentTime, .2); A.crGain.gain.setTargetAtTime((.06 + (CR.state === 'track' ? .05 : 0)) * (.5 + .5 * Math.sin(t * 2.4)), AC.currentTime, .05); }
