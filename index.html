@@ -1861,7 +1861,11 @@ function renderAch() {
 }
 renderAch();
 function greenout() { promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'greenout'; L.goT = 0; L.inhaling = false; clearInput(); pullEl.hidden = true; sfx.greenout(); say("You're greening out.", 3.5); }
-function caught() { promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
+function caught() {
+  // step it back so the whole thing is in view when you're turned to face it
+  { const dx = CR.x - P.x, dz = CR.z - P.z, d = Math.hypot(dx, dz) || 1, want = 1.9;
+    if (d < want) { CR.x = clamp(P.x + dx / d * want, -cur.w / 2 + .4, cur.w / 2 - .4); CR.z = clamp(P.z + dz / d * want, -cur.d / 2 + .4, cur.d / 2 - .4); } }
+  promptEl.hidden = true, promptEl.textContent = ''; if (L.hidden) leaveHide(true); state = 'scare'; L.scT = 0; L.screamed = false; L.inhaling = false; L.holding = false; sfx.growl(crWhere(), 1.2); hudEl.hidden = true; pullEl.hidden = true; noteEl.hidden = true; msgEl.classList.remove('show'); $('inv').hidden = true; lamp.color.setHex(0xff2a2a); }
 function gameOver() {
   clearGame();
   state = 'over'; $('inv').hidden = true; setTorch(false); if (AC) A.musicGain.gain.value = 0;
@@ -2369,7 +2373,7 @@ function render(dt) {
   const turnToIt = scare && L.scT < 1.0;
   if (turnToIt) {
     const want = Math.atan2(-(CR.x - P.x), -(CR.z - P.z));
-    P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 7); P.pitch += (.22 - P.pitch) * Math.min(1, dt * 6);
+    P.yaw += Math.atan2(Math.sin(want - P.yaw), Math.cos(want - P.yaw)) * Math.min(1, dt * 7); P.pitch += (.28 - P.pitch) * Math.min(1, dt * 6);
   } else if (scare) {
     if (!L.screamed) { L.screamed = true; sfx.scream(1.6); }
     shx = rnd(-.03, .03); shy = rnd(-.03, .03); P.pitch *= .85; CR.x = P.x - Math.sin(P.yaw) * 1.05; CR.z = P.z - Math.cos(P.yaw) * 1.05;
