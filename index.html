@@ -843,7 +843,7 @@ async function saveRun() {
   btn.hidden = true; msg.textContent = `Saving as ${me.username}…`;
   const before = await supa.from('scores').select('time_sec').eq('user_id', me.id).eq('mode', lastRun.mode).is('daily', null).order('time_sec').limit(1);
   const prevBest = before.data && before.data.length ? before.data[0].time_sec : null;
-  const { data: newId, error } = await supa.rpc('submit_score', { p_run: lastRun.runId, p_pulls: lastRun.pulls, p_deaths: lastRun.deaths, p_peak: lastRun.peak });
+  const { data: newId, error } = await supa.rpc('submit_score', { p_run: lastRun.runId, p_pulls: lastRun.pulls, p_deaths: lastRun.deaths, p_peak: lastRun.peak, p_time: lastRun.time });
   if (error) {
     const final = /already submitted|run not found|time_sec|one_life/.test(error.message);
     msg.textContent = /already submitted/.test(error.message) ? 'This run is already on the leaderboard.' : final ? "This run can't go on the leaderboard." : "Couldn't save your time. Check your connection and try again.";
@@ -933,7 +933,7 @@ function initHouse(seed = null) {
   const wild = pk(['phone', 'keys', 'jacket']), used = new Set();
   const take = list => { const id = list.find(x => !used.has(x)); used.add(id); return id; };
   for (const kind of ['keys', 'jacket', 'phone']) {
-    const id = kind === wild ? take(anyRoom) : kind === 'phone' ? take(dark) : take(lit);
+    const id = kind === wild || R() < .5 ? take(anyRoom) : kind === 'phone' ? take(dark) : take(lit);
     NODES[id].items.push({ kind, nearLight: !!NODES[id].light });
   }
   const noteRooms = shuffled(ROOM_DEFS.filter(d => d.id !== 'living').map(d => d.id), R);
@@ -1261,7 +1261,7 @@ function buildRoom(id, day = false, shifted = false) {
   disposeRoom();
   const node = NODES[id];
   const nbs = (adj[id] || []).slice(); if (node.type === 'entry') nbs.push('outside');
-  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37), items: {}, notes: [], snacks: [], couch: null, day, flame: null, shifted, hides: [], throwables: [] };
+  const r = { id, node, w: node.w, d: node.d, group: new THREE.Group(), colliders: [], zones: [], lights: [], doors: [], rand: rng(hashStr(id) ^ 0x9e37 ^ (G && G.seed ? G.seed : 0)), items: {}, notes: [], snacks: [], couch: null, day, flame: null, shifted, hides: [], throwables: [] };
   cur = r;
   layoutDoors(r, nbs);
   buildShell(r);
